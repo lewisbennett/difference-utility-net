@@ -1,8 +1,61 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
-	<LangVersion>9</LangVersion>
-  </PropertyGroup>
+	<PropertyGroup>
+		<GitInfoReportImportance Condition="'$(Configuration)' == 'Release'">high</GitInfoReportImportance>
+		<TargetFramework>netstandard2.1</TargetFramework>
+		<LangVersion>9</LangVersion>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+		<Authors>Lewis Bennett</Authors>
+		<Description>A simple library, similar to Android's DiffUtil, for .NET collections.</Description>
+		<PackageProjectUrl>https://github.com/lewisbennett/difference-utility-net</PackageProjectUrl>
+		<PackageLicenseFile>LICENSE</PackageLicenseFile>
+		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+		<RepositoryType>git</RepositoryType>
+		<RepositoryUrl>https://github.com/lewisbennett/difference-utility-net</RepositoryUrl>
+		<NoWarn>1701;1702;1591;1573</NoWarn>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="$(GitBranch) == 'develop' or $(GitBranch) == 'master'">
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	</PropertyGroup>
+
+	<PropertyGroup Condition=" '$(Configuration)'=='Debug' ">
+		<DebugType>full</DebugType>
+		<DebugSymbols>true</DebugSymbols>
+	</PropertyGroup>
+
+	<PropertyGroup Condition=" '$(Configuration)'=='Release' ">
+		<DebugType>pdbonly</DebugType>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<DocumentationFile>DifferenceUtility.Net.xml</DocumentationFile>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="..\..\LICENSE">
+			<Pack>True</Pack>
+			<PackagePath></PackagePath>
+		</None>
+		<Compile Include="*.cs" />
+		<Compile Include="Base\**\*.cs" />
+		<Compile Include="Instructions\**\*.cs" />
+		<PackageReference Include="GitInfo" Version="2.2.0">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
+	<Target Name="SetNuspecProperties" BeforeTargets="GenerateNuspec;_GetProjectVersion" DependsOnTargets="GitVersion">
+		<PropertyGroup>
+			<Version Condition="$(GitBranch) == 'master'">$(GitBaseTag)</Version>
+			<Version Condition="$(GitBranch) == 'develop'">$(GitBaseTag)-alpha-$(GitCommit)</Version>
+
+			<PackageVersion Condition="$(GitBranch) == 'master'">$(GitBaseTag)</PackageVersion>
+			<PackageVersion Condition="$(GitBranch) == 'develop'">$(GitBaseTag)-alpha-$(GitCommit)</PackageVersion>
+		</PropertyGroup>
+	</Target>
 
 </Project>
