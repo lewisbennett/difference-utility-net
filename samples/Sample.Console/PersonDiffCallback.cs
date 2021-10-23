@@ -1,4 +1,5 @@
 ﻿using DifferenceUtility.Net.Base;
+using Sample.Assets;
 using System.Collections.Generic;
 
 namespace Sample.NetConsole

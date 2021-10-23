@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Sample.NetConsole
+﻿namespace Sample.Assets
 {
     public class Person
     {
