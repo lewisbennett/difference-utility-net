@@ -9,3 +9,7 @@ Difference utility provides a means for gracefully applying collection changes w
 ## Samples
 
 [.NET console project](https://github.com/lewisbennett/difference-utility-net/tree/develop/samples/Sample.Console)
+
+[MvvmCross core project](https://github.com/lewisbennett/difference-utility-net/tree/develop/samples/Sample.MvvmCross.Core)
+
+[MvvmCross Android project](https://github.com/lewisbennett/difference-utility-net/tree/develop/samples/Sample.MvvmCross.Droid)
