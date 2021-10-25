@@ -11,7 +11,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.MvvmCross.Core", "sa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.MvvmCross.Droid", "samples\Sample.MvvmCross.Droid\Sample.MvvmCross.Droid.csproj", "{8BE2BB29-9C38-4DA4-9D5C-8AF3178CF7C0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.Assets", "samples\Sample.Assets\Sample.Assets.csproj", "{67C6ED6F-1374-4A57-8356-52F8786E4429}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.Assets", "samples\Sample.Assets\Sample.Assets.csproj", "{67C6ED6F-1374-4A57-8356-52F8786E4429}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{900AA60C-5D56-4359-8735-9E3C8AA1A844}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -44,6 +46,12 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{44AE44B5-0414-42AC-9F60-F27F07869443} = {900AA60C-5D56-4359-8735-9E3C8AA1A844}
+		{73DC0A28-6E0C-42E7-8A14-639AC8E1392D} = {900AA60C-5D56-4359-8735-9E3C8AA1A844}
+		{8BE2BB29-9C38-4DA4-9D5C-8AF3178CF7C0} = {900AA60C-5D56-4359-8735-9E3C8AA1A844}
+		{67C6ED6F-1374-4A57-8356-52F8786E4429} = {900AA60C-5D56-4359-8735-9E3C8AA1A844}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8C8FB63B-55F8-4E45-A2F0-BE1E4FD0A715}
