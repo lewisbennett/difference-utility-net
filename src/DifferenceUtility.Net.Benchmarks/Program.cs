@@ -55,11 +55,11 @@ namespace DifferenceUtility.Net.Benchmarks
             if (File.Exists(testDataPath_Guid) && File.Exists(testDataPath_Int))
             {
                 // Import Guid test.
-                using (var streamReader = new StreamReader(Path.Combine(projectDirectory, $"test_data_guid_{testCount}.json")))
+                using (var streamReader = new StreamReader(testDataPath_Guid))
                     benchmarkData_Guid = JsonSerializer.Deserialize<BenchmarkData<Guid>>(streamReader.ReadToEnd());
 
                 // Import int test.
-                using (var streamReader = new StreamReader(Path.Combine(projectDirectory, $"test_data_int_{testCount}.json")))
+                using (var streamReader = new StreamReader(testDataPath_Int))
                     benchmarkData_Int = JsonSerializer.Deserialize<BenchmarkData<int>>(streamReader.ReadToEnd());
                 
                 return;
