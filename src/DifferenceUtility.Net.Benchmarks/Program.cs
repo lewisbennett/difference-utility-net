@@ -21,66 +21,65 @@ namespace DifferenceUtility.Net.Benchmarks
         {
             var projectDirectory = Environment.GetEnvironmentVariable("PROJECT_DIRECTORY");
 
-            // Changing this value will alter either the number of tests generated,
-            // or the test to look for to import before beginning benchmarks.
+            // Change this value to generate/import then benchmark a different dataset.
             const int testCount = 10;
 
-            // Run this first, if a test doesn't already exist in the project directory.
-            //GenerateTestData(projectDirectory, testCount);
+            GenerateOrImportTestData(projectDirectory, testCount, out var benchmarkData_Guid, out var benchmarkData_Int);
 
-            // Uncomment this line to execute benchmarks.
-            PrepareAndExecuteBenchmarks(projectDirectory, testCount);
-        }
+            BenchmarkData_Guid = benchmarkData_Guid;
+            BenchmarkData_Int = benchmarkData_Int;
 
-        /// <summary>
-        /// Prepares the program for benchmarking, then executes the benchmarks.
-        /// </summary>
-        /// <param name="projectDirectory">This project's directory.</param>
-        /// <param name="testCount">The number of entries to include in the test.</param>
-        public static void PrepareAndExecuteBenchmarks(string projectDirectory, int testCount)
-        {
-            // Import Guid test.
-            using (var streamReader = new StreamReader(Path.Combine(projectDirectory, $"test_data_guid_{testCount}.json")))
-                BenchmarkData_Guid = JsonSerializer.Deserialize<BenchmarkData<Guid>>(streamReader.ReadToEnd());
-
-            // Import int test.
-            using (var streamReader = new StreamReader(Path.Combine(projectDirectory, $"test_data_int_{testCount}.json")))
-                BenchmarkData_Int = JsonSerializer.Deserialize<BenchmarkData<int>>(streamReader.ReadToEnd());
-            
 #if DEBUG
             BenchmarkRunner.Run<DifferenceUtilityBenchmarks>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
 #else
             BenchmarkRunner.Run<DifferenceUtilityBenchmarks>();
 #endif
         }
-
+        
         /// <summary>
         /// Generates test data and saves them, JSON serialized, to the project directory.
         /// </summary>
         /// <param name="projectDirectory">This project's directory.</param>
-        /// <param name="count">The number of entries for each test.</param>
-        public static void GenerateTestData(string projectDirectory, int count)
+        /// <param name="testCount">The number of entries for each test.</param>
+        public static void GenerateOrImportTestData(string projectDirectory, int testCount, out BenchmarkData<Guid> benchmarkData_Guid, out BenchmarkData<int> benchmarkData_Int)
         {
             // Make sure the count is a multiple of two.
-            count -= count % 2;
+            testCount -= testCount % 2;
 
-            if (count < 2)
+            if (testCount < 2)
                 throw new InvalidOperationException("Invalid test data item count provided.");
 
+            var testDataPath_Guid = Path.Combine(projectDirectory, $"TestData/test_data_guid_{testCount}.json");
+            var testDataPath_Int = Path.Combine(projectDirectory, $"TestData/test_data_int_{testCount}.json");
+
+            if (File.Exists(testDataPath_Guid) && File.Exists(testDataPath_Int))
+            {
+                // Import Guid test.
+                using (var streamReader = new StreamReader(Path.Combine(projectDirectory, $"test_data_guid_{testCount}.json")))
+                    benchmarkData_Guid = JsonSerializer.Deserialize<BenchmarkData<Guid>>(streamReader.ReadToEnd());
+
+                // Import int test.
+                using (var streamReader = new StreamReader(Path.Combine(projectDirectory, $"test_data_int_{testCount}.json")))
+                    benchmarkData_Int = JsonSerializer.Deserialize<BenchmarkData<int>>(streamReader.ReadToEnd());
+                
+                return;
+            }
+            
             string[] names;
 
+            // Import the name bank.
             using (var streamReader = new StreamReader(Path.Combine(projectDirectory, "name_bank.json")))
                 names = JsonSerializer.Deserialize<string[]>(streamReader.ReadToEnd()).Distinct().ToArray();
 
-            if (count > names.Length / 2)
+            if (testCount > names.Length / 2)
                 throw new InvalidOperationException("Test data item count cannot exceed half the provided names.");
 
             var testData_Guid = new BenchmarkData<Guid>();
             var testData_Int = new BenchmarkData<int>();
 
-            var originalData = names.Take(count).ToArray();
+            var originalData = names.Take(testCount).ToArray();
             
-            for (var i = 0; i < count; i++)
+            for (var i = 0; i < testCount; i++)
             {
                 var id_Guid = Guid.NewGuid();
                 var id_Int = i;
@@ -90,7 +89,7 @@ namespace DifferenceUtility.Net.Benchmarks
                 var nameSplit = originalData[i].Split(' ');
 
                 // Guid person objects.
-                (testData_Guid.OriginalData ??= new Person<Guid>[count])[i] = new Person<Guid>
+                (testData_Guid.OriginalData ??= new Person<Guid>[testCount])[i] = new Person<Guid>
                 {
                     FirstName = nameSplit[0],
                     LastName = nameSplit[1],
@@ -98,7 +97,7 @@ namespace DifferenceUtility.Net.Benchmarks
                 };
 
                 // Int person objects.
-                (testData_Int.OriginalData ??= new Person<int>[count])[i] = new Person<int>
+                (testData_Int.OriginalData ??= new Person<int>[testCount])[i] = new Person<int>
                 {
                     FirstName = nameSplit[0],
                     LastName = nameSplit[1],
@@ -108,20 +107,20 @@ namespace DifferenceUtility.Net.Benchmarks
                 #endregion
             }
 
-            var indexes = new int[count];
+            var indexes = new int[testCount];
 
-            for (var i = 0; i < count; i++)
+            for (var i = 0; i < testCount; i++)
                 indexes[i] = i;
 
             var removedIndexes = indexes.ToList().RemoveRandom(indexes.Length / 2).ToArray();
             var shuffledIndexes = indexes.ToList().Shuffle().ToArray();
 
-            var dummyData = names.Skip(count).Take(count).ToArray();
+            var dummyData = names.Skip(testCount).Take(testCount).ToArray();
 
             var insertions_Guid = new List<Person<Guid>>();
             var insertions_Int = new List<Person<int>>();
 
-            for (var i = 0; i < count; i++)
+            for (var i = 0; i < testCount; i++)
             {
                 var id_Guid = testData_Guid.OriginalData[i].ID;
                 var id_Int = testData_Int.OriginalData[i].ID;
@@ -144,7 +143,7 @@ namespace DifferenceUtility.Net.Benchmarks
                     {
                         FirstName = dummyNameSplit[0],
                         LastName = dummyNameSplit[1],
-                        ID = id_Int + count
+                        ID = id_Int + testCount
                     });
 
                     #endregion
@@ -165,7 +164,7 @@ namespace DifferenceUtility.Net.Benchmarks
 
                 var shuffledPerson_Guid = testData_Guid.OriginalData[shuffledIndexes[i]];
 
-                (testData_Guid.MovesTestData ??= new Person<Guid>[count])[i] = new Person<Guid>
+                (testData_Guid.MovesTestData ??= new Person<Guid>[testCount])[i] = new Person<Guid>
                 {
                     FirstName = shuffledPerson_Guid.FirstName,
                     LastName = shuffledPerson_Guid.LastName,
@@ -174,7 +173,7 @@ namespace DifferenceUtility.Net.Benchmarks
 
                 var shuffledPerson_Int = testData_Int.OriginalData[shuffledIndexes[i]];
 
-                (testData_Int.MovesTestData ??= new Person<int>[count])[i] = new Person<int>
+                (testData_Int.MovesTestData ??= new Person<int>[testCount])[i] = new Person<int>
                 {
                     FirstName = shuffledPerson_Int.FirstName,
                     LastName = shuffledPerson_Int.LastName,
@@ -185,7 +184,7 @@ namespace DifferenceUtility.Net.Benchmarks
                 #region Updates Test Data
 
                 // Guid person objects.
-                (testData_Guid.UpdatesTestData ??= new Person<Guid>[count])[i] = new Person<Guid>
+                (testData_Guid.UpdatesTestData ??= new Person<Guid>[testCount])[i] = new Person<Guid>
                 {
                     // New name, same ID.
                     FirstName = dummyNameSplit[0],
@@ -194,7 +193,7 @@ namespace DifferenceUtility.Net.Benchmarks
                 };
 
                 // Int person objects.
-                (testData_Int.UpdatesTestData ??= new Person<int>[count])[i] = new Person<int>
+                (testData_Int.UpdatesTestData ??= new Person<int>[testCount])[i] = new Person<int>
                 {
                     // New name, same ID.
                     FirstName = dummyNameSplit[0],
@@ -210,11 +209,14 @@ namespace DifferenceUtility.Net.Benchmarks
             testData_Int.InsertionTestData = testData_Int.OriginalData.ToList().InsertRandom(insertions_Int).ToArray();
 
             // Serialize and save the tests.
-            using (var streamWriter = new StreamWriter(Path.Combine(projectDirectory, $"test_data_guid_{count}.json")))
+            using (var streamWriter = new StreamWriter(testDataPath_Guid))
                 streamWriter.WriteLine(JsonSerializer.Serialize(testData_Guid));
 
-            using (var streamWriter = new StreamWriter(Path.Combine(projectDirectory, $"test_data_int_{count}.json")))
+            using (var streamWriter = new StreamWriter(testDataPath_Int))
                 streamWriter.WriteLine(JsonSerializer.Serialize(testData_Int));
+
+            benchmarkData_Guid = testData_Guid;
+            benchmarkData_Int = testData_Int;
         }
     }
 }
