@@ -10,24 +10,20 @@ namespace DifferenceUtility.Net.Benchmarks
 {
     public static class Program
     {
-        public static BenchmarkData<Guid> BenchmarkData_Guid { get; private set; }
-
-        public static BenchmarkData<int> BenchmarkData_Int { get; private set; }
-
+        #region Configuration Constants
+        /// <summary>
+        /// Change this to the number of entries in the test data to benchmark.
+        /// </summary>
+        public const int TestCount = 10;
+        #endregion
+        
+        #region Public Methods
         /// <summary>
         /// // Main application entry point.
         /// </summary>
         public static void Main()
         {
-            var projectDirectory = Environment.GetEnvironmentVariable("PROJECT_DIRECTORY");
-
-            // Change this value to generate/import then benchmark a different dataset.
-            const int testCount = 10;
-
-            GenerateOrImportTestData(projectDirectory, testCount, out var benchmarkData_Guid, out var benchmarkData_Int);
-
-            BenchmarkData_Guid = benchmarkData_Guid;
-            BenchmarkData_Int = benchmarkData_Int;
+            GenerateTestData();
 
 #if DEBUG
             BenchmarkRunner.Run<DifferenceUtilityBenchmarks>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
@@ -35,42 +31,47 @@ namespace DifferenceUtility.Net.Benchmarks
             BenchmarkRunner.Run<DifferenceUtilityBenchmarks>();
 #endif
         }
+        #endregion
         
+        #region Private Methods
         /// <summary>
-        /// Generates test data and saves them, JSON serialized, to the project directory.
+        /// Generates and saves test data, JSON serialized, to the project directory.
+        ///
+        /// Test data is generated in bundles. This means that the data will be the same, only the format and value of <see cref="Person{T}.ID" /> will changed.
+        /// 
+        /// This method will return if test data already exists for all supported ID data types, but will continue, and overwrite, any existing test data if any are missing.
         /// </summary>
-        /// <param name="projectDirectory">This project's directory.</param>
-        /// <param name="testCount">The number of entries for each test.</param>
-        public static void GenerateOrImportTestData(string projectDirectory, int testCount, out BenchmarkData<Guid> benchmarkData_Guid, out BenchmarkData<int> benchmarkData_Int)
+        private static void GenerateTestData()
         {
             // Make sure the count is a multiple of two.
-            testCount -= testCount % 2;
+            const int testCount = TestCount - TestCount % 2;
 
+            // Sanity check in case of TestCount value being changed manually.
             if (testCount < 2)
                 throw new InvalidOperationException("Invalid test data item count provided.");
 
-            var testDataPath_Guid = Path.Combine(projectDirectory, $"TestData/test_data_guid_{testCount}.json");
-            var testDataPath_Int = Path.Combine(projectDirectory, $"TestData/test_data_int_{testCount}.json");
+            var projectDirectory = Environment.GetEnvironmentVariable("PROJECT_DIRECTORY");
 
+            if (string.IsNullOrWhiteSpace(projectDirectory))
+                throw new InvalidOperationException("PROJECT_DIRECTORY environment variable missing.");
+            
+            var testDataPath = Path.Combine(projectDirectory, "TestData");
+
+            var testDataPath_Guid = Path.Combine(testDataPath, $"test_data_guid_{testCount}.json");
+            var testDataPath_Int = Path.Combine(testDataPath, $"test_data_int_{testCount}.json");
+
+            // No need to generate new test data if it already exists.
             if (File.Exists(testDataPath_Guid) && File.Exists(testDataPath_Int))
-            {
-                // Import Guid test.
-                using (var streamReader = new StreamReader(testDataPath_Guid))
-                    benchmarkData_Guid = JsonSerializer.Deserialize<BenchmarkData<Guid>>(streamReader.ReadToEnd());
-
-                // Import int test.
-                using (var streamReader = new StreamReader(testDataPath_Int))
-                    benchmarkData_Int = JsonSerializer.Deserialize<BenchmarkData<int>>(streamReader.ReadToEnd());
-                
                 return;
-            }
             
             string[] names;
 
             // Import the name bank.
             using (var streamReader = new StreamReader(Path.Combine(projectDirectory, "name_bank.json")))
                 names = JsonSerializer.Deserialize<string[]>(streamReader.ReadToEnd()).Distinct().ToArray();
-
+            
+            // Maximum number of test entries is 50% the length of the provided name bank,
+            // as half of the names will be used for original and dummy data.
             if (testCount > names.Length / 2)
                 throw new InvalidOperationException("Test data item count cannot exceed half the provided names.");
 
@@ -214,9 +215,7 @@ namespace DifferenceUtility.Net.Benchmarks
 
             using (var streamWriter = new StreamWriter(testDataPath_Int))
                 streamWriter.WriteLine(JsonSerializer.Serialize(testData_Int));
-
-            benchmarkData_Guid = testData_Guid;
-            benchmarkData_Int = testData_Int;
         }
+        #endregion
     }
 }
