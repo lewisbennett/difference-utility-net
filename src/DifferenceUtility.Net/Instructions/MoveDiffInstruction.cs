@@ -1,12 +1,12 @@
-﻿using DifferenceUtility.Net.Base;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
+using DifferenceUtility.Net.Base;
 
 namespace DifferenceUtility.Net.Instructions
 {
-    public class MoveDiffInstruction : IDiffInstruction
+    public class MoveDiffInstruction<TOld> : IDiffInstruction<TOld>
     {
         #region Fields
-        private readonly object _item;
+        private readonly TOld _item;
         private readonly int _moveIndex;
         #endregion
 
@@ -14,15 +14,14 @@ namespace DifferenceUtility.Net.Instructions
         /// <summary>
         /// Applies the instruction to the <paramref name="collection" />.
         /// </summary>
-        public void Apply<T>(ObservableCollection<T> collection)
+        public void Apply(ObservableCollection<TOld> collection)
         {
-            collection.Move(collection.IndexOf((T)_item), _moveIndex);
+            collection.Move(collection.IndexOf(_item), _moveIndex);
         }
         #endregion
 
         #region Constructors
-        public MoveDiffInstruction(object item, int moveIndex)
-            : base()
+        public MoveDiffInstruction(TOld item, int moveIndex)
         {
             _item = item;
             _moveIndex = moveIndex;

@@ -2,13 +2,13 @@
 
 namespace DifferenceUtility.Net.Base
 {
-    public interface IDiffInstruction
+    public interface IDiffInstruction<T>
     {
         #region Methods
         /// <summary>
         /// Applies the instruction to the <paramref name="collection" />.
         /// </summary>
-        void Apply<T>(ObservableCollection<T> collection);
+        void Apply(ObservableCollection<T> collection);
         #endregion
     }
 }

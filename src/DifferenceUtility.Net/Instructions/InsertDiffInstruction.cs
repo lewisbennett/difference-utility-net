@@ -1,21 +1,21 @@
-﻿using DifferenceUtility.Net.Base;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
+using DifferenceUtility.Net.Base;
 
 namespace DifferenceUtility.Net.Instructions
 {
-    public class InsertDiffInstruction : IDiffInstruction
+    public class InsertDiffInstruction<TOld, TNew> : IDiffInstruction<TOld>
     {
         #region Fields
-        private readonly IDiffCallback _diffCallback;
+        private readonly IDiffCallback<TOld, TNew> _diffCallback;
         private readonly int _insertIndex;
-        private readonly object _item;
+        private readonly TNew _item;
         #endregion
 
         #region Public Methods
         /// <inheritdoc />
-        public void Apply<T>(ObservableCollection<T> collection)
+        public void Apply(ObservableCollection<TOld> collection)
         {
-            var item = (T)(_diffCallback.ConstructFinalItem(_item) ?? _item);
+            var item = _diffCallback.ConstructFinalItem(_item);
 
             // The Insert method will fail if we try to insert to the last position in the collection,
             // so check whether we should be using the Add method instead.
@@ -31,8 +31,7 @@ namespace DifferenceUtility.Net.Instructions
         #endregion
 
         #region Constructors
-        public InsertDiffInstruction(object item, int insertIndex, IDiffCallback diffCallback)
-            : base()
+        public InsertDiffInstruction(TNew item, int insertIndex, IDiffCallback<TOld, TNew> diffCallback)
         {
             _diffCallback = diffCallback;
             _insertIndex = insertIndex;
