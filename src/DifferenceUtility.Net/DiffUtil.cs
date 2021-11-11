@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using DifferenceUtility.Net.Base;
-using DifferenceUtility.Net.Instructions;
+using DifferenceUtility.Net.Helper;
+using DifferenceUtility.Net.Schema;
 
 namespace DifferenceUtility.Net
 {
@@ -14,59 +13,78 @@ namespace DifferenceUtility.Net
         /// Calculates the difference between <paramref name="oldCollection" /> and <paramref name="newCollection" />.
         /// </summary>
         /// <param name="diffCallback">A callback for calculating the difference between the provided collections.</param>
-        /// <returns>A <see cref="DiffResult{T}" /> with configured instructions.</returns>
-        public static DiffResult<TOld> CalculateDiff<TOld, TNew>(IEnumerable<TOld> oldCollection, IEnumerable<TNew> newCollection, IDiffCallback<TOld, TNew> diffCallback)
+        /// <returns>A <see cref="DiffResult{T, T}" /> with configured instructions.</returns>
+        public static DiffResult<TOld, TNew> CalculateDiff<TOld, TNew>(IEnumerable<TOld> oldCollection, IEnumerable<TNew> newCollection, IDiffCallback<TOld, TNew> diffCallback)
         {
-            return new DiffResult<TOld>(CalculateDiffInstructions(oldCollection, newCollection, diffCallback));
+            var waypoints = new DiffCalculator<TOld, TNew>(oldCollection, newCollection, diffCallback).CalculatePath(out var oldArray, out var newArray);
+
+            var diffInstructions = new List<(TOld, TNew, DiffStatus)>();
+            
+            foreach (var (current, previous) in MakePairsWithNext(waypoints))
+            {
+                var status = GetDiffStatus(current, previous);
+
+                TOld old = default;
+                TNew @new = default;
+
+                switch (status)
+                {
+                    case DiffStatus.Deleted:
+                        old = oldArray[current.X - 1];
+                        break;
+                    
+                    case DiffStatus.Equal:
+                        old = oldArray[current.X - 1];
+                        @new = newArray[current.Y - 1];
+                        break;
+                    
+                    case DiffStatus.Inserted:
+                        @new = newArray[current.Y - 1];
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+                
+                diffInstructions.Add((old, @new, status));
+            }
+
+            return new DiffResult<TOld, TNew>(diffCallback, diffInstructions);
         }
         #endregion
-
+        
         #region Private Methods
-        private static IEnumerable<IDiffInstruction<TOld>> CalculateDiffInstructions<TOld, TNew>(IEnumerable<TOld> oldCollection, IEnumerable<TNew> newCollection, IDiffCallback<TOld, TNew> diffCallback)
+        private static DiffStatus GetDiffStatus(Point current, Point previous)
         {
-            var oldArray = oldCollection as TOld[] ?? oldCollection?.ToArray();
-
-            if (oldArray is null || !oldArray.Any())
-                return Enumerable.Empty<IDiffInstruction<TOld>>();
-
-            var newArray = newCollection as TNew[] ?? newCollection?.ToArray();
-
-            if (newArray is null || !newArray.Any())
-                return Enumerable.Empty<IDiffInstruction<TOld>>();
-
-            var instructions = new List<IDiffInstruction<TOld>>();
+            if (current.X != previous.X && current.Y != previous.Y)
+                return DiffStatus.Equal;
             
-            // First, calculate the items that need to be removed.
-            // After this step, we can guarantee that the final collection size will be that of the new collection.
-            instructions.AddRange(oldArray.Where(o => !newArray.Any(n => diffCallback.AreItemsTheSame(o, n))).Select(x => new RemoveDiffInstruction<TOld>(x)));
+            if (current.X != previous.X)
+                return DiffStatus.Deleted;
             
-            for (var i = 0; i < newArray.Length; i++)
+            if (current.Y != previous.Y)
+                return DiffStatus.Inserted;
+
+            throw new Exception();
+        }
+        
+        private static IEnumerable<(Point Current, Point Previous)> MakePairsWithNext(IEnumerable<Point> waypoints)
+        {
+            using var enumerator = waypoints.GetEnumerator();
+
+            if (!enumerator.MoveNext())
+                yield break;
+
+            var previous = enumerator.Current;
+
+            while (enumerator.MoveNext())
             {
-                var newItem = newArray[i];
-                
-                // Insert instruction required if item does not already exist.
-                if (oldArray.SingleOrDefault(o => diffCallback.AreItemsTheSame(o, newItem)) is not { } existingItem)
-                {
-                    
-                    instructions.Add(new InsertDiffInstruction<TOld, TNew>(newItem, i, diffCallback));
-                    continue;
-                }
+                var current = enumerator.Current;
 
-                // Update instruction required if contents of existing item differ from the new item.
-                if (!diffCallback.AreContentsTheSame(existingItem, newItem))
-                    instructions.Add(new UpdateDiffInstruction<TOld, TNew>(existingItem, newItem, diffCallback));
-                
-                // Move required if existing item's index is different in old collection compared to new.
-                if (Array.IndexOf(oldArray, existingItem) != i)
-                    instructions.Add(new MoveDiffInstruction<TOld>(existingItem, i));
+                yield return (current, previous);
+
+                previous = current;
             }
-            
-            // Order of instructions to be applied in: remove, insert, move, update.
-            return instructions.OrderByDescending(i => i is RemoveDiffInstruction<TOld>)
-                .ThenByDescending(x => x is InsertDiffInstruction<TOld, TNew>)
-                .ThenByDescending(x => x is MoveDiffInstruction<TOld>)
-                .ThenByDescending(x => x is UpdateDiffInstruction<TOld, TNew>)
-                .ToArray();
         }
         #endregion
     }

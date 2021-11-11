@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Sample.NetConsole
 {
-    public class PersonDiffCallback : BaseDiffCallback<Person>
+    public class PersonDiffCallback : BaseDiffCallback<Person, Person>
     {
         public override bool AreContentsTheSame(Person oldItem, Person newItem)
         {
@@ -19,7 +19,7 @@ namespace Sample.NetConsole
             // Items are the same if their persistant IDs are the same.
             return oldItem.ID == newItem.ID;
         }
-
+        
         public override void UpdateContents(Person item, Person dataSource)
         {
             base.UpdateContents(item, dataSource);

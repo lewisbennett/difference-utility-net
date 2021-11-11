@@ -20,28 +20,28 @@ namespace DifferenceUtility.Net.Benchmarks
         #region Benchmark Methods
         [Benchmark]
         [ArgumentsSource(nameof(GetBenchmarkData))]
-        public DiffResult<Person<int>> CalculateDiffResult_Insertions_Gen(BenchmarkData<int> benchmarkData)
+        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Insertions_Gen(BenchmarkData<int> benchmarkData)
         {
             return DiffUtil.CalculateDiff(benchmarkData.OriginalData, benchmarkData.InsertionTestData, _personDiffCallback);
         }
         
         [Benchmark]
         [ArgumentsSource(nameof(GetBenchmarkData))]
-        public DiffResult<Person<int>> CalculateDiffResult_Moves_Gen(BenchmarkData<int> benchmarkData)
+        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Moves_Gen(BenchmarkData<int> benchmarkData)
         {
             return DiffUtil.CalculateDiff(benchmarkData.OriginalData, benchmarkData.MovesTestData, _personDiffCallback);
         }
         
         [Benchmark]
         [ArgumentsSource(nameof(GetBenchmarkData))]
-        public DiffResult<Person<int>> CalculateDiffResult_Removals_Gen(BenchmarkData<int> benchmarkData)
+        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Removals_Gen(BenchmarkData<int> benchmarkData)
         {
             return DiffUtil.CalculateDiff(benchmarkData.OriginalData, benchmarkData.RemovalsTestData, _personDiffCallback);
         }
         
         [Benchmark]
         [ArgumentsSource(nameof(GetBenchmarkData))]
-        public DiffResult<Person<int>> CalculateDiffResult_Updates_Gen(BenchmarkData<int> benchmarkData)
+        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Updates_Gen(BenchmarkData<int> benchmarkData)
         {
             return DiffUtil.CalculateDiff(benchmarkData.OriginalData, benchmarkData.UpdatesTestData, _personDiffCallback);
         }

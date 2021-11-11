@@ -1,6 +1,4 @@
-﻿using System.Collections.ObjectModel;
-
-namespace DifferenceUtility.Net.Base
+﻿namespace DifferenceUtility.Net.Base
 {
     public interface IDiffCallback<TOld, in TNew>
     {
@@ -19,8 +17,6 @@ namespace DifferenceUtility.Net.Base
 
         /// <summary>
         /// Use this method to construct the final model representation of <paramref name="newItem" />.
-        /// 
-        /// If no new model is required, return <c>null</c> to send <paramref name="newItem" /> to the final collection once <see cref="DiffResult{T}.Apply{T}(ObservableCollection{T})" /> is called.
         /// 
         /// Will only be called if <see cref="AreItemsTheSame(TOld, TNew)" /> returns <c>false</c>.
         /// </summary>

@@ -1,8 +1,6 @@
 ﻿namespace DifferenceUtility.Net.Base
 {
     public abstract class BaseDiffCallback<TOld, TNew> : IDiffCallback<TOld, TNew>
-        where TOld : class
-        where TNew : class
     {
         #region Public Methods
         /// <inheritdoc />
@@ -17,7 +15,10 @@
         /// <inheritdoc />
         public virtual TOld ConstructFinalItem(TNew newItem)
         {
-            return null;
+            if (newItem is TOld newOld)
+                return newOld;
+
+            return default;
         }
 
         /// <inheritdoc />

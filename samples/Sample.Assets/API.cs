@@ -53,12 +53,6 @@ namespace Sample.Assets
             {
                 new Person
                 {
-                    FirstName = "John",
-                    LastName = "Smithy",
-                    ID = 1
-                },
-                new Person
-                {
                     FirstName = "Lois",
                     LastName = "Lane",
                     ID = 5
@@ -80,6 +74,12 @@ namespace Sample.Assets
                     FirstName = "Barry",
                     LastName = "Allen",
                     ID = 6
+                },
+                new Person
+                {
+                    FirstName = "John",
+                    LastName = "Smithy",
+                    ID = 1
                 }
             };
     }
