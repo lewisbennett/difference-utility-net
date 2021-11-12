@@ -18,10 +18,10 @@ namespace Sample.Assets
 
             _hasLoadedPageOne = !_hasLoadedPageOne;
 
-            return toReturn.OrderBy(x => x.ID).ToArray();
+            return toReturn;
         }
 
-        private static readonly Person[] FirstDataset = new[]
+        private static readonly Person[] FirstDataset =
             {
                 new Person
                 {
@@ -49,7 +49,7 @@ namespace Sample.Assets
                 }
             };
 
-        private static readonly Person[] SecondDataset = new[]
+        private static readonly Person[] SecondDataset =
             {
                 new Person
                 {

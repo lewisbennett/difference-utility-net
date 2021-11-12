@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using DifferenceUtility.Net.Base;
 using DifferenceUtility.Net.Helper;
-using DifferenceUtility.Net.Schema;
 
 namespace DifferenceUtility.Net
 {
@@ -10,81 +11,26 @@ namespace DifferenceUtility.Net
     {
         #region Public Methods
         /// <summary>
-        /// Calculates the difference between <paramref name="oldCollection" /> and <paramref name="newCollection" />.
+        /// <para>Calculates a set of update operations that can convert <paramref name="oldCollection" /> into <paramref name="newCollection" />.</para>
+        /// <para>If your old and new collections are sorted by the same constraint and items never move (swap positions), you can disable move detection
+        /// which takes <c>O(N^2)</c> time, where N is the number of added, moved, or removed items.</para>
         /// </summary>
         /// <param name="diffCallback">A callback for calculating the difference between the provided collections.</param>
-        /// <returns>A <see cref="DiffResult{T, T}" /> with configured instructions.</returns>
-        public static DiffResult<TOld, TNew> CalculateDiff<TOld, TNew>(IEnumerable<TOld> oldCollection, IEnumerable<TNew> newCollection, IDiffCallback<TOld, TNew> diffCallback)
+        /// <param name="detectMoves"><c>true</c> if DiffUtil should try to detect moved items, <c>false</c> otherwise.</param>
+        /// <returns>A <see cref="DiffResult{T, T}" /> that contains the information about the edit sequence to convert the old collection into the new collection.</returns>
+        public static DiffResult<TOld, TNew> CalculateDiff<TOld, TNew>(
+            [NotNull] IEnumerable<TOld> oldCollection,
+            [NotNull] IEnumerable<TNew> newCollection,
+            [NotNull] IDiffCallback<TOld, TNew> diffCallback,
+            bool detectMoves = true)
         {
-            var waypoints = new DiffCalculator<TOld, TNew>(oldCollection, newCollection, diffCallback).CalculatePath(out var oldArray, out var newArray);
+            var oldArray = oldCollection as TOld[] ?? oldCollection?.ToArray() ?? throw new ArgumentNullException(nameof(oldCollection));
+            var newArray = newCollection as TNew[] ?? newCollection?.ToArray() ?? throw new ArgumentNullException(nameof(newCollection));
 
-            var diffInstructions = new List<(TOld, TNew, DiffStatus)>();
-            
-            foreach (var (current, previous) in MakePairsWithNext(waypoints))
-            {
-                var status = GetDiffStatus(current, previous);
+            if (diffCallback is null)
+                throw new ArgumentNullException(nameof(diffCallback));
 
-                TOld old = default;
-                TNew @new = default;
-
-                switch (status)
-                {
-                    case DiffStatus.Deleted:
-                        old = oldArray[current.X - 1];
-                        break;
-                    
-                    case DiffStatus.Equal:
-                        old = oldArray[current.X - 1];
-                        @new = newArray[current.Y - 1];
-                        break;
-                    
-                    case DiffStatus.Inserted:
-                        @new = newArray[current.Y - 1];
-                        break;
-
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
-                
-                diffInstructions.Add((old, @new, status));
-            }
-
-            return new DiffResult<TOld, TNew>(diffCallback, diffInstructions);
-        }
-        #endregion
-        
-        #region Private Methods
-        private static DiffStatus GetDiffStatus(Point current, Point previous)
-        {
-            if (current.X != previous.X && current.Y != previous.Y)
-                return DiffStatus.Equal;
-            
-            if (current.X != previous.X)
-                return DiffStatus.Deleted;
-            
-            if (current.Y != previous.Y)
-                return DiffStatus.Inserted;
-
-            throw new Exception();
-        }
-        
-        private static IEnumerable<(Point Current, Point Previous)> MakePairsWithNext(IEnumerable<Point> waypoints)
-        {
-            using var enumerator = waypoints.GetEnumerator();
-
-            if (!enumerator.MoveNext())
-                yield break;
-
-            var previous = enumerator.Current;
-
-            while (enumerator.MoveNext())
-            {
-                var current = enumerator.Current;
-
-                yield return (current, previous);
-
-                previous = current;
-            }
+            return new DiffCalculator<TOld, TNew>(oldArray, newArray, diffCallback, detectMoves).CalculateDiffResult();
         }
         #endregion
     }

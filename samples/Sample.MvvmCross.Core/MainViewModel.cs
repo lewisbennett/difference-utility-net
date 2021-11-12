@@ -40,7 +40,7 @@ namespace Sample.MvvmCross.Core
                     InvokeOnMainThread(() =>
                     {
                         // Apply the changes to the data.
-                        diffResult.Apply(Data);
+                        diffResult.DispatchUpdatesTo(Data);
                     });
                 }
 
