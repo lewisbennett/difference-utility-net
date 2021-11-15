@@ -13,11 +13,13 @@ namespace DifferenceUtility.Net
     /// <para>This class hold the information about the result of a <see cref="DiffUtil.CalculateDiff{T,T}" /> call.</para>
     /// <para>You can consume updates in a DiffResult via <see cref="DispatchUpdatesTo(ObservableCollection{TOld})" />.</para>
     /// </summary>
+    /// <typeparam name="TOld"></typeparam>
+    /// <typeparam name="TNew"></typeparam>
     public class DiffResult<TOld, TNew>
     {
         #region Fields
         private readonly bool _detectMoves;
-        private readonly IList<Snake> _snakes;
+        private readonly IList<Diagonal> _diagonals;
         private readonly IDiffCallback<TOld, TNew> _diffCallback;
         private readonly TNew[] _newArray;
         private readonly int[] _newItemStatuses, _oldItemStatuses;
@@ -31,8 +33,7 @@ namespace DifferenceUtility.Net
         /// <param name="observableCollection">A collection which is displaying the old collection, and will start displaying the new collection.</param>
         public void DispatchUpdatesTo([NotNull] ObservableCollection<TOld> observableCollection)
         {
-            DispatchUpdatesTo(new ObservableCollectionUpdateCallback<TOld, TNew>(_diffCallback,
-                observableCollection ?? throw new ArgumentNullException(nameof(observableCollection)), _newArray));
+            DispatchUpdatesTo(new ObservableCollectionUpdateCallback<TOld, TNew>(_diffCallback, observableCollection, _oldArray, _newArray));
         }
 
         /// <summary>
@@ -42,50 +43,133 @@ namespace DifferenceUtility.Net
         /// <param name="updateCallback">The callback to receive the update operations.</param>
         public void DispatchUpdatesTo([NotNull] ICollectionUpdateCallback updateCallback)
         {
-            if (updateCallback is null)
-                throw new ArgumentNullException(nameof(updateCallback));
+            if (updateCallback is not BatchingCollectionUpdateCallback batchingCallback)
+                batchingCallback = new BatchingCollectionUpdateCallback(updateCallback);
             
-            if (updateCallback is not BatchingCollectionUpdateCallback batchingUpdateCallback)
-                batchingUpdateCallback = new BatchingCollectionUpdateCallback(updateCallback);
+            // Track up to date current list size for moves.
+            // When a move is found, we record its position from the end of the collection (which is likely to change since we iterate in reverse).
+            // Later when we find the match of that move, we dispatch the update.
+            var currentCollectionSize = _oldArray.Length;
             
-            // These are add/remove operations that are converted to moves. We track their positions until their respective update operations are processed.
+            // List of postponed moves.
             var postponedUpdates = new List<PostponedUpdate>();
-
-            var oldPosition = _oldArray.Length;
-            var newPosition = _newArray.Length;
-
-            for (var snakeIndex = _snakes.Count - 1; snakeIndex >= 0; snakeIndex--)
+            
+            // positionX and positionY are exclusive.
+            var positionX = _oldArray.Length;
+            var positionY = _newArray.Length;
+            
+            // Iterate from end of the list to the beginning.
+            // This just makes offsets easier since changes in the earlier indices has an effect on the later indices.
+            for (var diagonalIndex = _diagonals.Count - 1; diagonalIndex >= 0; diagonalIndex--)
             {
-                var snake = _snakes[snakeIndex];
+                var diagonal = _diagonals[diagonalIndex];
 
-                var endX = snake.X + snake.Size;
-                var endY = snake.Y + snake.Size;
-
-                if (endX < oldPosition)
-                    DispatchRemovals(postponedUpdates, batchingUpdateCallback, endX, oldPosition - endX, endX);
-
-                if (endY < newPosition)
-                    DispatchAdditions(postponedUpdates, batchingUpdateCallback, endX, newPosition - endY, endY);
-
-                for (var i = snake.Size - 1; i >= 0; i--)
+                var endX = diagonal.GetEndX();
+                var endY = diagonal.GetEndY();
+                
+                // Dispatch removals and additions until we reach to that diagonal first removal
+                // then add so that it can go into its place and we don't need to offset values.
+                while (positionX > endX)
                 {
-                    if ((_oldItemStatuses[snake.X + i] & FlagMask) == FlagChanged)
-                        batchingUpdateCallback.OnChanged(snake.X + i, snake.Y + i,1);
+                    positionX--;
+                    
+                    // Removal.
+                    var status = _oldItemStatuses[positionX];
+
+                    if ((status & FlagMoved) != 0)
+                    {
+                        var newPosition = status >> FlagOffset;
+                        
+                        // Get postponed addition.
+                        if (GetPostponedUpdate(postponedUpdates, newPosition, false) is { } postponedUpdate)
+                        {
+                            // This is an addition that was postponed. Now dispatch it.
+                            var updatedNewPosition = currentCollectionSize - postponedUpdate.CurrentPosition;
+                            
+                            batchingCallback.OnMoved(positionX, updatedNewPosition - 1);
+                            
+                            if ((status & FlagMovedChanged) != 0)
+                                batchingCallback.OnChanged(updatedNewPosition - 1, newPosition, 1);
+                        }
+                        // First time we are seeing this, we'll see a matching addition.
+                        else
+                            postponedUpdates.Add(new PostponedUpdate(positionX, currentCollectionSize - positionX - 1, true));
+                    }
+                    else
+                    {
+                        // Simple removal.
+                        batchingCallback.OnRemoved(positionX, 1);
+                        currentCollectionSize--;
+                    }
                 }
 
-                oldPosition = snake.X;
-                newPosition = snake.Y;
+                while (positionY > endY)
+                {
+                    positionY--;
+                    
+                    // Addition.
+                    var status = _newItemStatuses[positionY];
+
+                    if ((status & FlagMoved) != 0)
+                    {
+                        // This is a move, not an addition.
+                        // See if this is postponed.
+                        var oldPosition = status >> FlagOffset;
+                        
+                        // Get postponed removal.
+                        // Postpone it until we see the removal.
+                        if (GetPostponedUpdate(postponedUpdates, oldPosition, true) is not { } postponedUpdate)
+                            postponedUpdates.Add(new PostponedUpdate(positionY, currentCollectionSize - positionX, false));
+
+                        else
+                        {
+                            // oldPositionFromEnd = foundCollectionSize = posX
+                            // We can find posX if we swap the collection sizes.
+                            // posX = collectionSize - oldPositionFromEnd
+                            var updatedOldPosition = currentCollectionSize - postponedUpdate.CurrentPosition - 1;
+                            
+                            batchingCallback.OnMoved(updatedOldPosition, positionX);
+                            
+                            if ((status & FlagMovedChanged) != 0)
+                                batchingCallback.OnChanged(positionX, positionY, 1);
+                        }
+                    }
+                    else
+                    {
+                        // Simple addition.
+                        batchingCallback.OnInserted(positionX, 1);
+                        currentCollectionSize++;
+                    }
+                }
+                
+                // Now dispatch updates for the diagonal.
+                positionX = diagonal.X;
+                positionY = diagonal.Y;
+
+                for (var i = 0; i < diagonal.Size; i++)
+                {
+                    // Dispatch changes.
+                    if ((_oldItemStatuses[positionX] & FlagMask) == FlagChanged)
+                        batchingCallback.OnChanged(positionX, positionY, 1);
+
+                    positionX++;
+                    positionY++;
+                }
+                
+                // Snap back for the next diagonal.
+                positionX = diagonal.X;
+                positionY = diagonal.Y;
             }
             
-            batchingUpdateCallback.DispatchLastEvent();
+            batchingCallback.DispatchLastEvent();
         }
         #endregion
         
         #region Constructors
-        internal DiffResult(TOld[] oldArray, TNew[] newArray, IDiffCallback<TOld, TNew> diffCallback, IList<Snake> snakes, int[] oldItemStatuses, int[] newItemStatuses, bool detectMoves)
+        internal DiffResult(TOld[] oldArray, TNew[] newArray, IDiffCallback<TOld, TNew> diffCallback, IList<Diagonal> diagonals, int[] oldItemStatuses, int[] newItemStatuses, bool detectMoves)
         {
             _detectMoves = detectMoves;
-            _snakes = snakes;
+            _diagonals = diagonals;
             _diffCallback = diffCallback;
             _newArray = newArray;
             _newItemStatuses = newItemStatuses;
@@ -95,280 +179,109 @@ namespace DifferenceUtility.Net
             Array.Fill(_oldItemStatuses, 0);
             Array.Fill(_newItemStatuses, 0);
             
-            AddRootSnake();
+            AddEdgeDiagonals();
             FindMatchingItems();
         }
         #endregion
         
         #region Private Methods
         /// <summary>
-        /// We always add a snake to 0, 0 so that we can run loops from end to beginning and be done when we run out of snakes.
+        /// Add edge diagonals so that we can iterate as long as there are diagonals without lots of null checks around.
         /// </summary>
-        private void AddRootSnake()
+        private void AddEdgeDiagonals()
         {
-            if (_snakes.FirstOrDefault() is not { X: 0, Y: 0 })
-            {
-                _snakes.Insert(0, new Snake
-                {
-                    Removal = false,
-                    Reverse = false,
-                    Size = 0,
-                    X = 0,
-                    Y = 0
-                });
-            }
-        }
-
-        private void DispatchAdditions(List<PostponedUpdate> postponedUpdates, ICollectionUpdateCallback updateCallback, int start, int count, int globalIndex)
-        {
-            if (!_detectMoves)
-            {
-                updateCallback.OnInserted(start, count);
-                return;
-            }
-
-            for (var i = count - 1; i >= 0; i--)
-            {
-                var status = _newItemStatuses[globalIndex + 1] & FlagMask;
-
-                switch (status)
-                {
-                    // Real addition.
-                    case 0:
-                        
-                        updateCallback.OnInserted(start, 1);
-
-                        foreach (var postponedUpdate in postponedUpdates)
-                            postponedUpdate.CurrentPosition++;
-                        
-                        break;
-                    
-                    case FlagMovedChanged:
-                    case FlagMovedNotChanged:
-
-                        var position = _newItemStatuses[globalIndex + i] >> FlagOffset;
-
-                        var update = RemovePostponedUpdate(postponedUpdates, position, true);
-                        
-                        // The item was moved from that position.
-                        updateCallback.OnMoved(update.CurrentPosition, start);
-                        
-                        // Also, dispatch a change.
-                        if (status == FlagMovedChanged)
-                            updateCallback.OnChanged(start, globalIndex + 1, 1);
-                        
-                        break;
-                    
-                    // Ignoring this.
-                    case FlagIgnore:
-                        postponedUpdates.Add(new PostponedUpdate(globalIndex + i, start, false));
-                        break;
-                    
-                    default:
-                        throw new InvalidOperationException($"Unknown flag for position: {globalIndex + i}: {Convert.ToString(status, 2)}");
-                }
-            }
-        }
-
-        private void DispatchRemovals(List<PostponedUpdate> postponedUpdates, ICollectionUpdateCallback updateCallback, int start, int count, int globalIndex)
-        {
-            if (!_detectMoves)
-            {
-                updateCallback.OnRemoved(start, count);
-                return;
-            }
-
-            for (var i = count - 1; i >= 0; i--)
-            {
-                var status = _oldItemStatuses[globalIndex + i] & FlagMask;
-
-                switch (status)
-                {
-                    // Real removal.
-                    case 0:
-
-                        updateCallback.OnRemoved(start + i, 1);
-
-                        foreach (var postponedUpdate in postponedUpdates)
-                            postponedUpdate.CurrentPosition--;
-                        
-                        break;
-                    
-                    case FlagMovedChanged:
-                    case FlagMovedNotChanged:
-
-                        var position = _oldItemStatuses[globalIndex + i] >> FlagOffset;
-
-                        var update = RemovePostponedUpdate(postponedUpdates, position, false);
-                        
-                        // The item was moved to that position. We do -1 because this is a move not add and removing current item offsets the target move by 1.
-                        updateCallback.OnMoved(start + i, update.CurrentPosition - 1);
-                        
-                        // Also, dispatch a change.
-                        if (status == FlagMovedChanged)
-                            updateCallback.OnChanged(update.CurrentPosition - 1, position, 1);
-                        
-                        break;
-                    
-                    // Ignoring this.
-                    case FlagIgnore:
-                        postponedUpdates.Add(new PostponedUpdate(globalIndex + i, start + i, true));
-                        break;
-                    
-                    default:
-                        throw new InvalidOperationException($"Unknown flag for position: {globalIndex + i}: {Convert.ToString(status, 2)}");
-                }
-            }
-        }
-        
-        private void FindAddition(int x, int y, int snakeIndex)
-        {
-            // Already set by a latter item if evaluates to false.
-            if (_oldItemStatuses[x - 1] == 0)
-                FindMatchingItem(x, y, snakeIndex, false);
+            // See if we should add 1 to the 0, 0.
+            if (_diagonals.FirstOrDefault() is not { X: 0, Y: 0 })
+                _diagonals.Insert(0, new Diagonal(0, 0, 0));
+            
+            // Always add one last.
+            _diagonals.Add(new Diagonal(_oldArray.Length, _newArray.Length, 0));
         }
 
         /// <summary>
-        /// Finds a matching item that is before the given coordinates in the matrix (before: left and above).
+        /// Search the whole list to find the addition for the given removal of position <paramref name="positionX" />.
         /// </summary>
-        /// <param name="x">The X coordinate in the matrix (position in the old collection).</param>
-        /// <param name="y">The Y coordinate in the matrix (position in the new collection).</param>
-        /// <param name="snakeIndex">The current snake index.</param>
-        /// <param name="removal"><c>true</c> if we are looking for a removal, <c>false</c> otherwise.</param>
-        /// <returns><c>true</c> if such item is found, <c>false</c> otherwise.</returns>
-        private bool FindMatchingItem(int x, int y, int snakeIndex, bool removal)
+        /// <param name="positionX">The position in the old collection.</param>
+        private void FindMatchingAddition(int positionX)
         {
-            int currentX, currentY, myItemPosition;
+            var positionY = 0;
 
-            if (removal)
+            foreach (var diagonal in _diagonals)
             {
-                myItemPosition = y - 1;
-                currentX = x;
-                currentY = y - 1;
-            }
-            else
-            {
-                myItemPosition = x - 1;
-                currentX = x - 1;
-                currentY = y;
-            }
-
-            for (var i = snakeIndex; i >= 0; i--)
-            {
-                var snake = _snakes[i];
-                
-                var endX = snake.X + snake.Size;
-                var endY = snake.Y + snake.Size;
-
-                if (removal)
+                while (positionY < diagonal.Y)
                 {
-                    // Check removals for a match.
-                    for (var position = currentX - 1; position >= endX; position--)
+                    // Found some additions, evaluate.
+                    if (_newItemStatuses[positionY] == 0)
                     {
-                        var oldItem = _oldArray[position];
-                        var newItem = _newArray[myItemPosition];
+                        // Not evaluated yet.
+                        var oldItem = _oldArray[positionX];
+                        var newItem = _newArray[positionY];
+                        
+                        if (_diffCallback.AreItemsTheSame(oldItem, newItem))
+                        {
+                            // Yay! Found it, set values.
+                            var changeFlag = _diffCallback.AreContentsTheSame(oldItem, newItem) ? FlagMovedNotChanged : FlagMovedChanged;
+                            
+                            // Once we process one of these, it will mark the other one as ignored.
+                            _oldItemStatuses[positionX] = (positionY << FlagOffset) | changeFlag;
+                            _newItemStatuses[positionY] = (positionX << FlagOffset) | changeFlag;
 
-                        if (!_diffCallback.AreItemsTheSame(oldItem, newItem))
-                            continue;
-
-                        // Found!
-                        var changeFlag = _diffCallback.AreContentsTheSame(oldItem, newItem) ? FlagMovedNotChanged : FlagMovedChanged;
-
-                        _oldItemStatuses[position] = (myItemPosition << FlagOffset) | changeFlag;
-                        _newItemStatuses[myItemPosition] = (position << FlagOffset) | FlagIgnore;
-
-                        return true;
+                            return;
+                        }
                     }
-                }
-                else
-                {
-                    // Check for addition for a match.
-                    for (var position = currentY - 1; position >= endY; position--)
-                    {
-                        var oldItem = _oldArray[myItemPosition];
-                        var newItem = _newArray[position];
 
-                        if (!_diffCallback.AreItemsTheSame(oldItem, newItem))
-                            continue;
-
-                        // Found!
-                        var changeFlag = _diffCallback.AreContentsTheSame(oldItem, newItem) ? FlagMovedNotChanged : FlagMovedChanged;
-
-                        _oldItemStatuses[x - 1] = (position << FlagOffset) | FlagIgnore;
-                        _newItemStatuses[position] = ((x - 1) << FlagOffset) | changeFlag;
-
-                        return true;
-                    }
+                    positionY++;
                 }
 
-                currentX = snake.X;
-                currentY = snake.Y;
+                positionY = diagonal.GetEndY();
             }
-
-            return false;
         }
         
         /// <summary>
-        /// <para>This method traverses each addition/removal and tries to match it to a previous addition/removal. This is how we detect move operations.</para>
-        /// <para>This class also flags whether an item has been changed or not.</para>
-        /// <para>DiffUtil does this pre-processing so that if it is running on a big collection, it can be moved to a background thread where most of the
-        /// expensive stuff will be calculated and kept in the statuses maps. DiffResult uses this pre-calculated information while dispatched the updates
-        /// (which is probably being called from the main thread).</para>
+        /// Find position mapping from old collection to new collection.
+        /// If moves are requested, we'll also try to an N^2 search between additions and removals to find moves.
         /// </summary>
         private void FindMatchingItems()
         {
-            var oldPosition = _oldArray.Length;
-            var newPosition = _newArray.Length;
-            
-            // Traverse the matrix from bottom right to 0, 0.
-            for (var i = _snakes.Count - 1; i >= 0; i--)
+            foreach (var diagonal in _diagonals)
             {
-                var snake = _snakes[i];
-
-                var endX = snake.X + snake.Size;
-                var endY = snake.Y + snake.Size;
-
-                if (_detectMoves)
+                for (var offset = 0; offset < diagonal.Size; offset++)
                 {
-                    while (oldPosition > endX)
-                    {
-                        // This is a removal. Check remaining snakes to see if this was added before.
-                        FindAddition(oldPosition, newPosition, i);
-                        
-                        oldPosition--;
-                    }
+                    var positionX = diagonal.X + offset;
+                    var positionY = diagonal.Y + offset;
+                    
+                    var changeFlag = _diffCallback.AreContentsTheSame(_oldArray[positionX], _newArray[positionY]) ? FlagNotChanged : FlagChanged;
 
-                    while (newPosition > endY)
-                    {
-                        // This is an addition. Check remaining snakes to see if this was removed before.
-                        FindRemoval(oldPosition, newPosition, i);
-
-                        newPosition--;
-                    }
+                    _oldItemStatuses[positionX] = (positionY << FlagOffset) | changeFlag;
+                    _newItemStatuses[positionY] = (positionX << FlagOffset) | changeFlag;
                 }
-
-                for (var j = 0; j < snake.Size; j++)
-                {
-                    // Matching items. Check if it has changed or not.
-                    var oldItemPosition = snake.X + j;
-                    var newItemPosition = snake.Y + j;
-
-                    var changeFlag = _diffCallback.AreContentsTheSame(_oldArray[oldItemPosition], _newArray[newItemPosition]) ? FlagNotChanged : FlagChanged;
-
-                    _oldItemStatuses[oldItemPosition] = (newItemPosition << FlagOffset) | changeFlag;
-                    _newItemStatuses[newItemPosition] = (oldItemPosition << FlagOffset) | changeFlag;
-                }
-
-                oldPosition = snake.X;
-                newPosition = snake.Y;
             }
+            
+            // Now all matches are marked, lets look for moves.
+            // Traverse each addition/removal from the end of the list, find matching additions/removals from before.
+            if (_detectMoves)
+                FindMoveMatches();
         }
 
-        private void FindRemoval(int x, int y, int snakeIndex)
+        private void FindMoveMatches()
         {
-            // Already set by a latter item if evaluates to false.
-            if (_newItemStatuses[y - 1] == 0)
-                FindMatchingItem(x, y, snakeIndex, true);
+            // For each removal, find matching addition.
+            var positionX = 0;
+
+            foreach (var diagonal in _diagonals)
+            {
+                while (positionX < diagonal.X)
+                {
+                    // There is a removal, find matching addition from the rest.
+                    if (_oldItemStatuses[positionX] == 0)
+                        FindMatchingAddition(positionX);
+
+                    positionX++;
+                }
+
+                // Snap back for the next diagonal.
+                positionX = diagonal.GetEndX();
+            }
         }
         #endregion
         
@@ -377,17 +290,13 @@ namespace DifferenceUtility.Net
         /// Item stayed in the same location, but the contents changed.
         /// </summary>
         private const int FlagChanged = FlagNotChanged << 1;
-
-        /// <summary>
-        /// <para>Ignore this update.</para>
-        /// <para>If this is an addition from the new list, it means the item is actually from from an earlier position
-        /// and its move will be dispatched when we process the matching removal from the old list.</para>
-        /// <para>If this is a removal from the old list, it means the item is actually added back to an earlier index
-        /// in the new list and we'll dispatch its move when we are processing that addition.</para>
-        /// </summary>
-        private const int FlagIgnore = FlagMovedNotChanged << 1;
         
         private const int FlagMask = (1 << FlagOffset) - 1;
+        
+        /// <summary>
+        /// Item moved.
+        /// </summary>
+        private const int FlagMoved = FlagMovedChanged | FlagMovedNotChanged;
         
         /// <summary>
         /// Item has moved and contents have also changed.
@@ -407,21 +316,25 @@ namespace DifferenceUtility.Net
         /// <summary>
         /// Since we are re-using the int arrays that were created in the Myers' step, we mask change flags.
         /// </summary>
-        private const int FlagOffset = 5;
+        private const int FlagOffset = 4;
         #endregion
         
         #region Private Static Methods
-        private static PostponedUpdate RemovePostponedUpdate(List<PostponedUpdate> postponedUpdates, int position, bool removal)
+        private static PostponedUpdate GetPostponedUpdate(ICollection<PostponedUpdate> postponedUpdates, int positionInCollection, bool removal)
         {
-            if (postponedUpdates.FirstOrDefault(p => p.PositionInOwnerCollection == position && p.Removal == removal) is not { } postponedUpdate)
-                return null;
-
-            postponedUpdates.Remove(postponedUpdate);
-
-            // Offset other operations since they swapped positions.
-            foreach (var update in postponedUpdates)
-                update.CurrentPosition += removal ? 1 : -1;
+            var postponedUpdate = postponedUpdates.FirstOrDefault(p => p.PositionInOwnerCollection == positionInCollection && p.Removal == removal);
             
+            if (postponedUpdate is not null)
+                postponedUpdates.Remove(postponedUpdate);
+            
+            foreach (var update in postponedUpdates)
+            {
+                if (removal)
+                    update.CurrentPosition--;
+                else
+                    update.CurrentPosition++;
+            }
+
             return postponedUpdate;
         }
         #endregion

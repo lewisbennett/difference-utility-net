@@ -44,6 +44,9 @@
 		</None>
 		<Compile Include="*.cs" />
 		<Compile Include="Base\**\*.cs" />
+		<Compile Include="Helper\CenteredArray.cs" />
+		<Compile Include="Helper\Diagonal.cs" />
+		<Compile Include="Helper\DiffCalculator.cs" />
 		<Compile Include="Helper\Range.cs" />
 		<Compile Include="Helper\Snake.cs" />
 		<Compile Include="Instructions\**\*.cs" />

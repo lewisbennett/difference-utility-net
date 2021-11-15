@@ -9,6 +9,7 @@ namespace DifferenceUtility.Net.CollectionUpdateCallbacks
         private readonly IDiffCallback<TOld, TNew> _diffCallback;
         private readonly TNew[] _newArray;
         private readonly ObservableCollection<TOld> _observableCollection;
+        private readonly TOld[] _oldArray;
         #endregion
         
         #region Public Methods
@@ -50,11 +51,12 @@ namespace DifferenceUtility.Net.CollectionUpdateCallbacks
         #endregion
         
         #region Constructors
-        public ObservableCollectionUpdateCallback(IDiffCallback<TOld, TNew> diffCallback, ObservableCollection<TOld> observableCollection, TNew[] newArray)
+        public ObservableCollectionUpdateCallback(IDiffCallback<TOld, TNew> diffCallback, ObservableCollection<TOld> observableCollection, TOld[] oldArray, TNew[] newArray)
         {
             _diffCallback = diffCallback;
             _newArray = newArray;
             _observableCollection = observableCollection;
+            _oldArray = oldArray;
         }
         #endregion
     }

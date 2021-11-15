@@ -1,34 +1,71 @@
-﻿namespace DifferenceUtility.Net.Helper
+﻿using System;
+
+namespace DifferenceUtility.Net.Helper
 {
-    internal struct Snake
+    internal readonly struct Snake
     {
         #region Properties
         /// <summary>
-        /// <c>true</c> if this is a removal from the original collection, followed by <see cref="Size" /> matches.
-        /// <c>false</c> if this is an addition from the new collection followed by <see cref="Size" /> matches.
+        /// End position in the old collection, exclusive.
         /// </summary>
-        public bool Removal { get; init; }
+        public int EndX { get; init; }
         
         /// <summary>
-        /// <c>true</c> if the addition or removal is at the end of the snake.
-        /// <c>false</c> if the addition or removal is at the start of the snake.
+        /// End position in the new collection, exclusive.
+        /// </summary>
+        public int EndY { get; init; }
+        
+        /// <summary>
+        /// <c>true</c> if this snake was created in the reverse search, <c>false</c> otherwise.
         /// </summary>
         public bool Reverse { get; init; }
         
         /// <summary>
-        /// Gets the number of matches. Might be zero.
+        /// Position in the old collection.
         /// </summary>
-        public int Size { get; init; }
+        public int StartX { get; init; }
         
         /// <summary>
-        /// Gets or sets the position in the old collection.
+        /// Position in the new collection.
         /// </summary>
-        public int X { get; set; }
+        public int StartY { get; init; }
+        #endregion
         
+        #region Public Methods
+        public int DiagonalSize()
+        {
+            return Math.Min(EndX - StartX, EndY - StartY);
+        }
+
         /// <summary>
-        /// Gets or sets the position in the new collection.
+        /// Extract the diagonal of the snake to make reasoning easier for the rest of the algorithm where we try to produce a path and also find moves.
         /// </summary>
-        public int Y { get; set; }
+        public Diagonal ToDiagonal()
+        {
+            // We are a pure diagonal.
+            if (!HasAdditionOrRemoval())
+                return new Diagonal(StartX, StartY, EndX - StartX);
+
+            // Snake edge is at the end.
+            if (Reverse)
+                return new Diagonal(StartX, StartY, DiagonalSize());
+            
+            return IsAddition()
+                ? new Diagonal(StartX, StartY + 1, DiagonalSize())      // Snake edge is at the beginning.
+                : new Diagonal(StartX + 1, StartY, DiagonalSize());     
+        }
+        #endregion
+        
+        #region Private Methods
+        private bool HasAdditionOrRemoval()
+        {
+            return EndY - StartY != EndX - StartX;
+        }
+
+        private bool IsAddition()
+        {
+            return EndY - StartY > EndX - StartX;
+        }
         #endregion
     }
 }
