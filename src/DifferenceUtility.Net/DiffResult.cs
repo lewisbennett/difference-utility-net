@@ -70,7 +70,7 @@ namespace DifferenceUtility.Net
 
         /// <summary>
         /// <para>Dispatches update operations to the given callback.</para>
-        /// These updates are atomic such that the first update call affects every update call that comes after it.
+        /// <para>These updates are atomic such that the first update call affects every update call that comes after it.</para>
         /// </summary>
         /// <param name="updateCallback">The callback to receive the update operations.</param>
         public void DispatchUpdatesTo([NotNull] ICollectionUpdateCallback updateCallback)
@@ -143,7 +143,7 @@ namespace DifferenceUtility.Net
                             break;
                     }
                 }
-
+                
                 while (positionY > endY)
                 {
                     positionY--;
