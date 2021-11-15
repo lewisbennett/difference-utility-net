@@ -171,9 +171,9 @@ namespace DifferenceUtility.Net
                             // Postpone it until we see the removal.
                             if (GetPostponedUpdate(postponedUpdates, oldPosition, true) is { } postponedUpdate)
                             {
-                                // oldPositionFromEnd = foundCollectionSize = posX
+                                // oldPositionFromEnd = foundCollectionSize = positionX
                                 // We can find posX if we swap the collection sizes.
-                                // posX = collectionSize - oldPositionFromEnd
+                                // positionX = collectionSize - oldPositionFromEnd
                                 var updatedOldPosition = currentCollectionSize - postponedUpdate.CurrentPosition - 1;
                                 
                                 batchingCallback.OnMoved(updatedOldPosition, positionX);
