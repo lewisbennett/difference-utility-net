@@ -152,12 +152,12 @@ namespace DifferenceUtility.Net
             // Sort snakes.
             diagonals.Sort(_diagonalComparator ??= new DiagonalComparator());
 
-            return new DiffResult<TOld, TNew>(diffCallback, oldArray, newArray, diagonals, forward.Data, backward.Data, detectMoves);
+            return new DiffResult<TOld, TNew>(diffCallback, oldArray, newArray, diagonals, forward.BackingData, backward.BackingData, detectMoves);
         }
         #endregion
         
         #region Private Methods
-        private static Snake? Backward<TOld, TNew>(IDiffCallback<TOld, TNew> diffCallback, TOld[] oldArray, TNew[] newArray,
+        private static Snake? Backward<TOld, TNew>(IDiffCallback<TOld, TNew> diffCallback, IReadOnlyList<TOld> oldArray, IReadOnlyList<TNew> newArray,
             Range range, CenteredArray forward, CenteredArray backward, int d)
         {
             var oldCollectionSize = range.GetOldCollectionSize();
@@ -228,7 +228,7 @@ namespace DifferenceUtility.Net
             return null;
         }
         
-        private static Snake? Forward<TOld, TNew>(IDiffCallback<TOld, TNew> diffCallback, TOld[] oldArray, TNew[] newArray,
+        private static Snake? Forward<TOld, TNew>(IDiffCallback<TOld, TNew> diffCallback, IReadOnlyList<TOld> oldArray, IReadOnlyList<TNew> newArray,
             Range range, CenteredArray forward, CenteredArray backward, int d)
         {
             var oldCollectionSize = range.GetOldCollectionSize();
@@ -298,7 +298,7 @@ namespace DifferenceUtility.Net
         /// <summary>
         /// Finds a middle snake in the given range.
         /// </summary>
-        private static Snake? MidPoint<TOld, TNew>(IDiffCallback<TOld, TNew> diffCallback, TOld[] oldArray, TNew[] newArray,
+        private static Snake? MidPoint<TOld, TNew>(IDiffCallback<TOld, TNew> diffCallback, IReadOnlyList<TOld> oldArray, IReadOnlyList<TNew> newArray,
             Range range, CenteredArray forward, CenteredArray backward)
         {
             var oldCollectionSize = range.GetOldCollectionSize();

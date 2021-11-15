@@ -12,27 +12,27 @@
         #endregion
         
         #region Properties
-        public int[] Data { get; }
+        public int[] BackingData { get; }
         #endregion
         
         #region Public Methods
         public int Get(int index)
         {
-            return Data[index + _centerOffset];
+            return BackingData[index + _centerOffset];
         }
 
         public void Set(int index, int value)
         {
-            Data[index + _centerOffset] = value;
+            BackingData[index + _centerOffset] = value;
         }
         #endregion
         
         #region Constructors
         public CenteredArray(int size)
         {
-            Data = new int[size];
+            BackingData = new int[size];
             
-            _centerOffset = Data.Length / 2;
+            _centerOffset = BackingData.Length / 2;
         }
         #endregion
     }

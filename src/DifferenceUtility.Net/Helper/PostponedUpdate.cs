@@ -9,7 +9,7 @@
     {
         #region Properties
         /// <summary>
-        /// Gets or sets the position with regards to the end of the list.
+        /// Gets or sets the position with regards to the end of the collection.
         /// </summary>
         public int CurrentPosition { get; set; }
         

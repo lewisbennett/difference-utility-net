@@ -43,7 +43,7 @@ namespace Sample.NetConsole
             people = await API.GetPeopleAsync();
 
             var result = DiffUtil.CalculateDiff(data, people, callback);
-
+            
             result.DispatchUpdatesTo(data);
 
             Console.WriteLine();
@@ -58,7 +58,6 @@ namespace Sample.NetConsole
         {
             switch (e.Action)
             {
-
                 case NotifyCollectionChangedAction.Add:
                     Console.WriteLine($"Item added at index: {e.NewStartingIndex}");
                     break;

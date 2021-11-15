@@ -22,7 +22,7 @@
         {
             return OldCollectionEnd - OldCollectionStart;
         }
-
+    
         public int GetNewCollectionSize()
         {
             return NewCollectionEnd - NewCollectionStart;

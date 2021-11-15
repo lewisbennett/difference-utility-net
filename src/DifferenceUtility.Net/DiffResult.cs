@@ -26,6 +26,37 @@ namespace DifferenceUtility.Net
         
         #region Public Methods
         /// <summary>
+        /// Given a position in the new collection, returns the position in the old collection, or <see cref="NoPosition" /> if not present.
+        /// </summary>
+        /// <param name="newItemPosition">The position of the item in the new collection.</param>
+        /// <returns>The position of the item in the old collection, or <see cref="NoPosition" /> if not present.</returns>
+        public int ConvertNewPositionToOld(int newItemPosition)
+        {
+            if (newItemPosition < 0 || newItemPosition >= _newArray.Length)
+                throw new IndexOutOfRangeException($"Index {newItemPosition} out of bounds. New collection size: {_newArray.Length}");
+
+            var status = _newItemStatuses[newItemPosition];
+
+            return (status & FlagMask) == 0 ? NoPosition : status >> FlagOffset;
+        }
+        
+        /// <summary>
+        /// Given a position in the old collection, returns the position in the new collection, or <see cref="NoPosition" /> if it was removed.
+        /// </summary>
+        /// <param name="oldItemPosition">The position of the item in the old collection.</param>
+        /// <returns>The position of the item in the new collection, or <see cref="NoPosition" /> if not present.</returns>
+        /// <seealso cref="ConvertNewPositionToOld" />
+        public int ConvertOldPositionToNew(int oldItemPosition)
+        {
+            if (oldItemPosition < 0 || oldItemPosition >= _oldArray.Length)
+                throw new IndexOutOfRangeException($"Index {oldItemPosition} out of bounds. Old collection size: {_oldArray.Length}");
+
+            var status = _oldItemStatuses[oldItemPosition];
+
+            return (status & FlagMask) == 0 ? -1 : status >> FlagOffset;
+        }
+        
+        /// <summary>
         /// Dispatches the update events to the given collection.
         /// </summary>
         /// <param name="observableCollection">A collection which is displaying the old collection, and will start displaying the new collection.</param>
@@ -87,7 +118,7 @@ namespace DifferenceUtility.Net
                             
                             batchingCallback.OnRemoved(positionX, 1);
                             currentCollectionSize--;
-                            
+
                             break;
                         
                         default:
@@ -135,24 +166,23 @@ namespace DifferenceUtility.Net
                             // This is a move, not an addition.
                             // See if this is postponed.
                             var oldPosition = status >> FlagOffset;
-                        
+                            
                             // Get postponed removal.
                             // Postpone it until we see the removal.
-                            if (GetPostponedUpdate(postponedUpdates, oldPosition, true) is not { } postponedUpdate)
-                                postponedUpdates.Add(new PostponedUpdate(positionY, currentCollectionSize - positionX, false));
-
-                            else
+                            if (GetPostponedUpdate(postponedUpdates, oldPosition, true) is { } postponedUpdate)
                             {
                                 // oldPositionFromEnd = foundCollectionSize = posX
                                 // We can find posX if we swap the collection sizes.
                                 // posX = collectionSize - oldPositionFromEnd
                                 var updatedOldPosition = currentCollectionSize - postponedUpdate.CurrentPosition - 1;
-                            
+                                
                                 batchingCallback.OnMoved(updatedOldPosition, positionX);
-                            
+                                
                                 if ((status & FlagMovedChanged) != 0)
                                     batchingCallback.OnChanged(positionX, positionY, 1);
                             }
+                            else
+                                postponedUpdates.Add(new PostponedUpdate(positionY, currentCollectionSize - positionX, false));
                             
                             break;
                     }
@@ -224,7 +254,7 @@ namespace DifferenceUtility.Net
         private void FindMatchingAddition(int positionX)
         {
             var positionY = 0;
-
+            
             foreach (var diagonal in _diagonals)
             {
                 while (positionY < diagonal.Y)
@@ -244,14 +274,14 @@ namespace DifferenceUtility.Net
                             // Once we process one of these, it will mark the other one as ignored.
                             _oldItemStatuses[positionX] = (positionY << FlagOffset) | changeFlag;
                             _newItemStatuses[positionY] = (positionX << FlagOffset) | changeFlag;
-
+            
                             return;
                         }
                     }
-
+            
                     positionY++;
                 }
-
+            
                 positionY = diagonal.GetEndY();
             }
         }
@@ -286,7 +316,7 @@ namespace DifferenceUtility.Net
         {
             // For each removal, find matching addition.
             var positionX = 0;
-
+            
             foreach (var diagonal in _diagonals)
             {
                 while (positionX < diagonal.X)
@@ -294,14 +324,21 @@ namespace DifferenceUtility.Net
                     // There is a removal, find matching addition from the rest.
                     if (_oldItemStatuses[positionX] == 0)
                         FindMatchingAddition(positionX);
-
+            
                     positionX++;
                 }
-
+            
                 // Snap back for the next diagonal.
                 positionX = diagonal.GetEndX();
             }
         }
+        #endregion
+        
+        #region Constant Values
+        /// <summary>
+        /// Signifies an item not present in the collection.
+        /// </summary>
+        public const int NoPosition = -1;
         #endregion
         
         #region Private Constant Values
