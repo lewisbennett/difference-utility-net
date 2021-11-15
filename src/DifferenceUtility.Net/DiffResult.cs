@@ -13,8 +13,6 @@ namespace DifferenceUtility.Net
     /// <para>This class hold the information about the result of a <see cref="DiffUtil.CalculateDiff{T,T}" /> call.</para>
     /// <para>You can consume updates in a DiffResult via <see cref="DispatchUpdatesTo(ObservableCollection{TOld})" />.</para>
     /// </summary>
-    /// <typeparam name="TOld"></typeparam>
-    /// <typeparam name="TNew"></typeparam>
     public class DiffResult<TOld, TNew>
     {
         #region Fields
@@ -33,6 +31,9 @@ namespace DifferenceUtility.Net
         /// <param name="observableCollection">A collection which is displaying the old collection, and will start displaying the new collection.</param>
         public void DispatchUpdatesTo([NotNull] ObservableCollection<TOld> observableCollection)
         {
+            if (observableCollection is null)
+                throw new ArgumentNullException(nameof(observableCollection));
+            
             DispatchUpdatesTo(new ObservableCollectionUpdateCallback<TOld, TNew>(_diffCallback, observableCollection, _oldArray, _newArray));
         }
 
@@ -43,6 +44,9 @@ namespace DifferenceUtility.Net
         /// <param name="updateCallback">The callback to receive the update operations.</param>
         public void DispatchUpdatesTo([NotNull] ICollectionUpdateCallback updateCallback)
         {
+            if (updateCallback is null)
+                throw new ArgumentNullException(nameof(updateCallback));
+            
             if (updateCallback is not BatchingCollectionUpdateCallback batchingCallback)
                 batchingCallback = new BatchingCollectionUpdateCallback(updateCallback);
             
@@ -76,30 +80,36 @@ namespace DifferenceUtility.Net
                     // Removal.
                     var status = _oldItemStatuses[positionX];
 
-                    if ((status & FlagMoved) != 0)
+                    switch (status & FlagMoved)
                     {
-                        var newPosition = status >> FlagOffset;
+                        // Simple removal
+                        case 0:
+                            
+                            batchingCallback.OnRemoved(positionX, 1);
+                            currentCollectionSize--;
+                            
+                            break;
                         
-                        // Get postponed addition.
-                        if (GetPostponedUpdate(postponedUpdates, newPosition, false) is { } postponedUpdate)
-                        {
-                            // This is an addition that was postponed. Now dispatch it.
-                            var updatedNewPosition = currentCollectionSize - postponedUpdate.CurrentPosition;
+                        default:
                             
-                            batchingCallback.OnMoved(positionX, updatedNewPosition - 1);
+                            var newPosition = status >> FlagOffset;
+                        
+                            // Get postponed addition.
+                            if (GetPostponedUpdate(postponedUpdates, newPosition, false) is { } postponedUpdate)
+                            {
+                                // This is an addition that was postponed. Now dispatch it.
+                                var updatedNewPosition = currentCollectionSize - postponedUpdate.CurrentPosition;
                             
-                            if ((status & FlagMovedChanged) != 0)
-                                batchingCallback.OnChanged(updatedNewPosition - 1, newPosition, 1);
-                        }
-                        // First time we are seeing this, we'll see a matching addition.
-                        else
-                            postponedUpdates.Add(new PostponedUpdate(positionX, currentCollectionSize - positionX - 1, true));
-                    }
-                    else
-                    {
-                        // Simple removal.
-                        batchingCallback.OnRemoved(positionX, 1);
-                        currentCollectionSize--;
+                                batchingCallback.OnMoved(positionX, updatedNewPosition - 1);
+                            
+                                if ((status & FlagMovedChanged) != 0)
+                                    batchingCallback.OnChanged(updatedNewPosition - 1, newPosition, 1);
+                            }
+                            // First time we are seeing this, we'll see a matching addition.
+                            else
+                                postponedUpdates.Add(new PostponedUpdate(positionX, currentCollectionSize - positionX - 1, true));
+                            
+                            break;
                     }
                 }
 
@@ -110,35 +120,41 @@ namespace DifferenceUtility.Net
                     // Addition.
                     var status = _newItemStatuses[positionY];
 
-                    if ((status & FlagMoved) != 0)
-                    {
-                        // This is a move, not an addition.
-                        // See if this is postponed.
-                        var oldPosition = status >> FlagOffset;
-                        
-                        // Get postponed removal.
-                        // Postpone it until we see the removal.
-                        if (GetPostponedUpdate(postponedUpdates, oldPosition, true) is not { } postponedUpdate)
-                            postponedUpdates.Add(new PostponedUpdate(positionY, currentCollectionSize - positionX, false));
-
-                        else
-                        {
-                            // oldPositionFromEnd = foundCollectionSize = posX
-                            // We can find posX if we swap the collection sizes.
-                            // posX = collectionSize - oldPositionFromEnd
-                            var updatedOldPosition = currentCollectionSize - postponedUpdate.CurrentPosition - 1;
-                            
-                            batchingCallback.OnMoved(updatedOldPosition, positionX);
-                            
-                            if ((status & FlagMovedChanged) != 0)
-                                batchingCallback.OnChanged(positionX, positionY, 1);
-                        }
-                    }
-                    else
+                    switch (status & FlagMoved)
                     {
                         // Simple addition.
-                        batchingCallback.OnInserted(positionX, 1);
-                        currentCollectionSize++;
+                        case 0:
+                            
+                            batchingCallback.OnInserted(positionX, 1);
+                            currentCollectionSize++;
+                            
+                            break;
+                        
+                        default:
+                            
+                            // This is a move, not an addition.
+                            // See if this is postponed.
+                            var oldPosition = status >> FlagOffset;
+                        
+                            // Get postponed removal.
+                            // Postpone it until we see the removal.
+                            if (GetPostponedUpdate(postponedUpdates, oldPosition, true) is not { } postponedUpdate)
+                                postponedUpdates.Add(new PostponedUpdate(positionY, currentCollectionSize - positionX, false));
+
+                            else
+                            {
+                                // oldPositionFromEnd = foundCollectionSize = posX
+                                // We can find posX if we swap the collection sizes.
+                                // posX = collectionSize - oldPositionFromEnd
+                                var updatedOldPosition = currentCollectionSize - postponedUpdate.CurrentPosition - 1;
+                            
+                                batchingCallback.OnMoved(updatedOldPosition, positionX);
+                            
+                                if ((status & FlagMovedChanged) != 0)
+                                    batchingCallback.OnChanged(positionX, positionY, 1);
+                            }
+                            
+                            break;
                     }
                 }
                 
@@ -166,7 +182,7 @@ namespace DifferenceUtility.Net
         #endregion
         
         #region Constructors
-        internal DiffResult(TOld[] oldArray, TNew[] newArray, IDiffCallback<TOld, TNew> diffCallback, IList<Diagonal> diagonals, int[] oldItemStatuses, int[] newItemStatuses, bool detectMoves)
+        internal DiffResult(IDiffCallback<TOld, TNew> diffCallback, TOld[] oldArray, TNew[] newArray, IList<Diagonal> diagonals, int[] oldItemStatuses, int[] newItemStatuses, bool detectMoves)
         {
             _detectMoves = detectMoves;
             _diagonals = diagonals;
@@ -191,7 +207,10 @@ namespace DifferenceUtility.Net
         private void AddEdgeDiagonals()
         {
             // See if we should add 1 to the 0, 0.
-            if (_diagonals.FirstOrDefault() is not { X: 0, Y: 0 })
+            if (!_diagonals.Any())
+                _diagonals.Add(new Diagonal(0, 0, 0));
+            
+            else if (_diagonals.First() is not { X: 0, Y: 0 })
                 _diagonals.Insert(0, new Diagonal(0, 0, 0));
             
             // Always add one last.
@@ -322,18 +341,13 @@ namespace DifferenceUtility.Net
         #region Private Static Methods
         private static PostponedUpdate GetPostponedUpdate(ICollection<PostponedUpdate> postponedUpdates, int positionInCollection, bool removal)
         {
-            var postponedUpdate = postponedUpdates.FirstOrDefault(p => p.PositionInOwnerCollection == positionInCollection && p.Removal == removal);
+            if (postponedUpdates.FirstOrDefault(p => p.PositionInOwnerCollection == positionInCollection && p.Removal == removal) is not { } postponedUpdate)
+                return null;
             
-            if (postponedUpdate is not null)
-                postponedUpdates.Remove(postponedUpdate);
-            
+            postponedUpdates.Remove(postponedUpdate);
+
             foreach (var update in postponedUpdates)
-            {
-                if (removal)
-                    update.CurrentPosition--;
-                else
-                    update.CurrentPosition++;
-            }
+                update.CurrentPosition += removal ? -1 : 1;
 
             return postponedUpdate;
         }

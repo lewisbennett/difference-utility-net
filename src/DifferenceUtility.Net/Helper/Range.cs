@@ -28,15 +28,5 @@
             return NewCollectionEnd - NewCollectionStart;
         }
         #endregion
-        
-        #region Constructors
-        public Range(int oldCollectionStart, int oldCollectionEnd, int newCollectionStart, int newCollectionEnd)
-        {
-            NewCollectionEnd = newCollectionEnd;
-            NewCollectionStart = newCollectionStart;
-            OldCollectionEnd = oldCollectionEnd;
-            OldCollectionStart = oldCollectionStart;
-        }
-        #endregion
     }
 }
