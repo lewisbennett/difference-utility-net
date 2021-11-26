@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection;
 using DifferenceUtility.Net.Base;
 using DifferenceUtility.Net.Helper;
-using Range = DifferenceUtility.Net.Helper.Range;
 
 namespace DifferenceUtility.Net
 {
@@ -40,21 +40,6 @@ namespace DifferenceUtility.Net
     /// </summary>
     public static class DiffUtil
     {
-        private class DiagonalComparator : IComparer<Diagonal>
-        {
-            #region Public Methods
-            /// <inheritdoc />
-            public int Compare(Diagonal x, Diagonal y)
-            {
-                return x.X - y.X;
-            }
-            #endregion
-        }
-        
-        #region Fields
-        private static DiagonalComparator _diagonalComparator;
-        #endregion
-        
         #region Public Methods
         /// <summary>
         /// <para>Calculates a set of update operations that can convert <paramref name="oldCollection" /> into <paramref name="newCollection" />.</para>
@@ -69,259 +54,159 @@ namespace DifferenceUtility.Net
             [NotNull] IEnumerable<TNew> newCollection,
             [NotNull] IDiffCallback<TOld, TNew> diffCallback,
             bool detectMoves = true)
+            where TNew : class
+            where TOld : class
         {
             var oldArray = oldCollection as TOld[] ?? oldCollection?.ToArray() ?? throw new ArgumentNullException(nameof(oldCollection));
             var newArray = newCollection as TNew[] ?? newCollection?.ToArray() ?? throw new ArgumentNullException(nameof(newCollection));
 
             if (diffCallback is null)
                 throw new ArgumentNullException(nameof(diffCallback));
-
-            var oldSize = oldArray.Length;
-            var newSize = newArray.Length;
-
-            var diagonals = new List<Diagonal>();
-
-            // Instead of a recursive implementation, we keep our own stack to avoid potential stack overflow exceptions.
-            var stack = new List<Range>
-            {
-                new()
-                {
-                    NewCollectionEnd = newSize,
-                    NewCollectionStart = 0,
-                    OldCollectionEnd = oldSize,
-                    OldCollectionStart = 0
-                }
-            };
-
-            var max = (oldSize + newSize + 1) / 2;
-
-            var centeredArraySize = max * 2 + 1;
             
-            // Allocate forward and backward K-lines. K-lines are diagonal lines in the matrix (see the paper for details).
-            // These arrays lines keep the max reachable position for each k-line.
-            var forward = new CenteredArray(centeredArraySize);
-            var backward = new CenteredArray(centeredArraySize);
-            
-            // We pool the ranges to avoid allocations for each recursive call.
-            var rangePool = new List<Range>();
+            var diagonals = new List<(int X, int Y)>();
 
-            while (stack.Any())
+            // Find all item matches (diagonals).
+            for (var x = 0; x < oldArray.Length; x++)
             {
-                var range = stack.Last();
-                stack.Remove(range);
-
-                if (MidPoint(diffCallback, oldArray, newArray, range, forward, backward) is not { } snake)
+                for (var y = 0; y < newArray.Length; y++)
                 {
-                    rangePool.Add(range);
-                    continue;
-                }
-                
-                // If it has a diagonal, save it.
-                if (snake.DiagonalSize() > 0)
-                    diagonals.Add(snake.ToDiagonal());
-                
-                // Add new ranges for left and right.
-                Range left;
+                    if (!diffCallback.AreItemsTheSame(oldArray[x], newArray[y]))
+                        continue;
 
-                if (rangePool.Any())
-                {
-                    left = rangePool.Last();
-                    rangePool.Remove(left);
+                    // There should only be a maximum of 1 diagonal per column, so break once it has been found.
+                    diagonals.Add((x, y));
+                    
+                    break;
                 }
-                else
-                    left = new Range();
-
-                left.NewCollectionEnd = snake.StartY;
-                left.NewCollectionStart = range.NewCollectionStart;
-                left.OldCollectionEnd = snake.StartX;
-                left.OldCollectionStart = range.OldCollectionStart;
-                
-                stack.Add(left);
-                
-                // Re-use range for right.
-                var right = range;
-                
-                right.OldCollectionEnd = range.OldCollectionEnd;
-                right.OldCollectionStart = snake.EndX;
-                right.NewCollectionEnd = range.NewCollectionEnd;
-                right.NewCollectionStart = snake.EndY;
-                
-                stack.Add(right);
             }
-            
-            // Sort snakes.
-            diagonals.Sort(_diagonalComparator ??= new DiagonalComparator());
 
-            return new DiffResult<TOld, TNew>(diffCallback, oldArray, newArray, diagonals, forward.BackingData, backward.BackingData, detectMoves);
-        }
-        #endregion
-        
-        #region Private Methods
-        private static Snake? Backward<TOld, TNew>(IDiffCallback<TOld, TNew> diffCallback, IReadOnlyList<TOld> oldArray, IReadOnlyList<TNew> newArray,
-            Range range, CenteredArray forward, CenteredArray backward, int d)
-        {
-            var oldCollectionSize = range.GetOldCollectionSize();
-            var newCollectionSize = range.GetNewCollectionSize();
-
-            var checkForSnake = (oldCollectionSize - newCollectionSize) % 2 == 0;
-            var delta = oldCollectionSize - newCollectionSize;
+            // Add the furthest possible point so that we can find a path from beginning to end.
+            diagonals.Add((oldArray.Length, newArray.Length));
             
-            // Same as forward, but we go backwards from end of the collections to the beginning.
-            // This also means we'll try to optimize for minimizing X instead of maximizing it.
-            for (var k = -d; k <= d; k += 2)
+            var path = new List<int>();
+
+            var currentX = 0;
+            var currentY = 0;
+
+            var diagonalIndex = 0;
+            
+            // Diagonals are removed after retrieving them so that, by the end of the below loop, the only
+            // diagonals remaining are those that aren't used in the final path. These will be used later
+            // for calculating move operations later, if detect moves is enabled.
+            var currentTarget = diagonals[diagonalIndex];
+            diagonals.RemoveAt(diagonalIndex);
+
+            while (currentX < oldArray.Length || currentY < newArray.Length)
             {
-                // We either came from D-1, K-1 OR D-1, K+1.
-                // As we move in steps of 2, array always holds both current and previous D values.
-                // K = X - Y and each array value hold the min X, Y = X - K.
-                // When X's are equal, we prioritize deletion over insertion.
-
-                int startX, x;
-                
-                // Picking K + 1, decrementing Y (by simply not decrementing X).
-                if (k == -d || k != d && backward.Get(k + 1) < backward.Get(k - 1))
-                    x = startX = backward.Get(k + 1);
-
-                else
+                // Prioritise horizontal moves (removals) over vertical moves (insertions).
+                while (currentX < currentTarget.X)
                 {
-                    // Picking K - 1, decrementing X.
-                    startX = backward.Get(k - 1);
-                    x = startX - 1;
+                    path.Add((currentX << DiffOperation.Offset) | DiffOperation.Remove);
+                    
+                    currentX++;
                 }
 
-                var y = range.NewCollectionEnd - (range.OldCollectionEnd - x - k);
-                
-                var startY = d == 0 || x != startX ? y : y + 1;
-                
-                // Now find snake size.
-                while (x > range.OldCollectionStart && y > range.NewCollectionStart && diffCallback.AreItemsTheSame(oldArray[x - 1], newArray[y - 1]))
+                while (currentY < currentTarget.Y)
                 {
-                    x--;
-                    y--;
+                    path.Add((currentY << DiffOperation.Offset) | DiffOperation.Insert);
+
+                    currentY++;
                 }
                 
-                // Now we have furthest point, record it (min X).
-                backward.Set(k, x);
-
-                if (!checkForSnake)
+                // Diagonals are no longer possible once X or Y reaches the end.
+                if (currentX == oldArray.Length || currentY == newArray.Length)
                     continue;
-
-                // See if we did pass over a backwards array.
-                // Mapping function: delta - k.
-                var forwardsK = delta - k;
                 
-                // If forwards K is calculated it passed me, found match.
-                if (forwardsK >= -d && forwardsK <= d && forward.Get(forwardsK) >= x)
+                // Add the diagonal.
+                var diagonalPayload = DiffOperation.NoOperation;
+
+                if (!diffCallback.AreContentsTheSame(oldArray[currentX], newArray[currentY]))
+                    diagonalPayload |= DiffOperation.Update;
+                
+                path.Add(diagonalPayload);
+
+                // Increment diagonally.
+                currentX++;
+                currentY++;
+                
+                // Get the next diagonal that is within range of the current coordinates.
+                while (diagonalIndex < diagonals.Count)
                 {
-                    // Match.
-                    return new Snake
+                    var diagonal = diagonals[diagonalIndex];
+
+                    if (diagonal.X < currentX || diagonal.Y < currentY)
                     {
-                        // Assignment are reverse since we are a reverse snake.
-                        EndX = startX,
-                        EndY = startY,
-                        Reverse = true,
-                        StartX = x,
-                        StartY = y
-                    };
+                        // Only increment the diagonal index if we're skipping this diagonal.
+                        diagonalIndex++;
+                        
+                        continue;
+                    }
+                    
+                    // Since we remove the diagonal, the index we're querying stays the same.
+                    currentTarget = diagonal;
+                    diagonals.RemoveAt(diagonalIndex);
+                    
+                    break;
                 }
             }
 
-            return null;
-        }
-        
-        private static Snake? Forward<TOld, TNew>(IDiffCallback<TOld, TNew> diffCallback, IReadOnlyList<TOld> oldArray, IReadOnlyList<TNew> newArray,
-            Range range, CenteredArray forward, CenteredArray backward, int d)
-        {
-            var oldCollectionSize = range.GetOldCollectionSize();
-            var newCollectionSize = range.GetNewCollectionSize();
+            if (!detectMoves)
+                return new DiffResult<TOld, TNew>(diffCallback, oldArray, newArray, path);
+
+            // Moves are diagonals that aren't included in the path. As a result, they are represented as an
+            // insert/remove operation, followed by the inverse later on in the path instructions. We have to
+            // find these pairs and update their flags so that they're treated properly when applying the changes.
             
-            var checkForSnake = Math.Abs(oldCollectionSize - newCollectionSize) % 2 == 1;
-            var delta = oldCollectionSize - newCollectionSize;
-
-            for (var k = -d; k <= d; k += 2)
+            foreach (var diagonal in diagonals)
             {
-                // We either come from D-1, K-1, OR D-1, K+1.
-                // As we move in steps of 2, array always holds both current and previous D values.
-                // K = X - Y and each array value holds the max X, Y = X - K.
-
-                int startX, x;
-
-                // Picking K + 1, incrementing Y (by simply not incrementing X).
-                if (k == -d || k != d && forward.Get(k + 1) > forward.Get(k - 1))
-                    x = startX = forward.Get(k + 1);
-
-                else
-                {
-                    // Picking K - 1, incrementing X.
-                    startX = forward.Get(k - 1);
-                    x = startX + 1;
-                }
-
-                var y = range.NewCollectionStart + (x - range.OldCollectionStart) - k;
+                int? xOperationIndex = null, yOperationIndex = null;
                 
-                var startY = d == 0 || x != startX ? y : y - 1;
-                
-                // Now find snake size.
-                while (x < range.OldCollectionEnd && y < range.NewCollectionEnd && diffCallback.AreItemsTheSame(oldArray[x], newArray[y]))
+                for (var i = 0; i < path.Count; i++)
                 {
-                    x++;
-                    y++;
+                    var payload = path[i];
+                    
+                    // Skip this item if the payload already has the move flag.
+                    // If an item has already been processed, what w as previously an encoded X coordinate will now be an encoded Y,
+                    // coordinate and vice versa. If these new values match a non-processed value, this may select the wrong indexes.
+                    if ((payload & DiffOperation.Move) != 0)
+                        continue;
+                    
+                    // Nested loop search not required since we're querying both X and Y. With this approach, no matter
+                    // which coordinate we find first, it is guaranteed that the next one will be after it in the path.
+
+                    if (!xOperationIndex.HasValue && (payload & DiffOperation.Remove) != 0 && payload >> DiffOperation.Offset == diagonal.X)
+                        xOperationIndex = i;
+
+                    else if (!yOperationIndex.HasValue && (payload & DiffOperation.Insert) != 0 && payload >> DiffOperation.Offset == diagonal.Y)
+                        yOperationIndex = i;
+                    
+                    if (xOperationIndex.HasValue && yOperationIndex.HasValue)
+                        break;
                 }
                 
-                // Now we have the furthest reaching X, record it.
-                forward.Set(k, x);
-
-                if (!checkForSnake)
+                // Both values are required to process a move operation.
+                // Y operation index will always have a value if the X operation index does.
+                if (!xOperationIndex.HasValue || !yOperationIndex.HasValue)
                     continue;
 
-                // See if we did pass over a backwards array.
-                // Mapping function: delta - k.
-                var backwardsK = delta - k;
+                var xOperation = path[xOperationIndex.Value];
+                var yOperation = path[yOperationIndex.Value];
+
+                var x = xOperation >> DiffOperation.Offset;
+                var y = yOperation >> DiffOperation.Offset;
                 
-                // If backwards K is calculated and it passed me, found match.
-                if (backwardsK >= -d + 1 && backwardsK <= d - 1 && backward.Get(backwardsK) <= x)
-                {
-                    // Match.
-                    return new Snake
-                    {
-                        EndX = x,
-                        EndY = y,
-                        Reverse = false,
-                        StartX = startX,
-                        StartY = startY
-                    };
-                }
+                // Append additional flags to payload.
+                var additionalFlags = DiffOperation.Move;
+
+                if (!diffCallback.AreContentsTheSame(oldArray[x], newArray[y]))
+                    additionalFlags |= DiffOperation.Update;
+
+                // Moves require the X/Y coordinates to be inverted, but the flags should stay the same.
+                path[xOperationIndex.Value] = (y << DiffOperation.Offset) | DiffOperation.Remove | additionalFlags;
+                path[yOperationIndex.Value] = (x << DiffOperation.Offset) | DiffOperation.Insert | additionalFlags;
             }
 
-            return null;
-        }
-        
-        /// <summary>
-        /// Finds a middle snake in the given range.
-        /// </summary>
-        private static Snake? MidPoint<TOld, TNew>(IDiffCallback<TOld, TNew> diffCallback, IReadOnlyList<TOld> oldArray, IReadOnlyList<TNew> newArray,
-            Range range, CenteredArray forward, CenteredArray backward)
-        {
-            var oldCollectionSize = range.GetOldCollectionSize();
-            var newCollectionSize = range.GetNewCollectionSize();
-            
-            if (oldCollectionSize < 1 || newCollectionSize < 1)
-                return null;
-
-            var max = (oldCollectionSize + newCollectionSize + 1) / 2;
-            
-            forward.Set(1, range.OldCollectionStart);
-            backward.Set(1, range.OldCollectionEnd);
-
-            for (var d = 0; d < max; d++)
-            {
-                if (Forward(diffCallback, oldArray, newArray, range, forward, backward, d) is { } forwardSnake)
-                    return forwardSnake;
-
-                if (Backward(diffCallback, oldArray, newArray, range, forward, backward, d) is { } backwardSnake)
-                    return backwardSnake;
-            }
-
-            return null;
+            return new DiffResult<TOld, TNew>(diffCallback, oldArray, newArray, path);
         }
         #endregion
     }

@@ -15,11 +15,11 @@
         void OnChanged(int position, int datasourcePosition, int count);
         
         /// <summary>
-        /// Called when <paramref name="count" /> number of items are inserted at the given <paramref name="position" />.
+        /// Called when an item is inserted at the given <paramref name="insertPosition" />.
         /// </summary>
-        /// <param name="position">The position of the new item.</param>
-        /// <param name="count">The number of items that have been added.</param>
-        void OnInserted(int position, int count);
+        /// <param name="insertPosition">The position to insert the new item at.</param>
+        /// <param name="itemPosition">The position of the item in the new collection.</param>
+        void OnInserted(int insertPosition, int itemPosition);
 
         /// <summary>
         /// Called when an item changes its position in the collection.

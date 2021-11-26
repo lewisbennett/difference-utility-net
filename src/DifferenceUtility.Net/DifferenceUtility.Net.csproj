@@ -37,17 +37,13 @@
 	<ItemGroup>
 		<Compile Include="CollectionUpdateCallbacks\BatchingCollectionUpdateCallback.cs" />
 		<Compile Include="CollectionUpdateCallbacks\ObservableCollectionUpdateCallback.cs" />
-		<Compile Include="Helper\PostponedUpdate.cs" />
 		<None Include="..\..\LICENSE">
 			<Pack>True</Pack>
 			<PackagePath></PackagePath>
 		</None>
 		<Compile Include="*.cs" />
 		<Compile Include="Base\**\*.cs" />
-		<Compile Include="Helper\CenteredArray.cs" />
-		<Compile Include="Helper\Diagonal.cs" />
-		<Compile Include="Helper\Range.cs" />
-		<Compile Include="Helper\Snake.cs" />
+		<Compile Include="Helper\DiffOperation.cs" />
 		<Compile Include="Instructions\**\*.cs" />
 		<PackageReference Include="GitInfo" Version="2.2.0">
 			<PrivateAssets>all</PrivateAssets>

@@ -64,20 +64,27 @@ namespace DifferenceUtility.Net.CollectionUpdateCallbacks
         }
         
         /// <inheritdoc />
-        public void OnInserted(int position, int count)
+        public void OnInserted(int insertPosition, int itemPosition)
         {
-            if (_lastEventType == TypeAdd && position >= _lastEventPosition && position <= _lastEventPosition + _lastEventCount)
+            // Insertions are not merged.
+            DispatchLastEvent();
+            
+            _wrappedCallback.OnInserted(insertPosition, itemPosition);
+            
+            return;
+            
+            if (_lastEventType == TypeAdd && insertPosition >= _lastEventPosition && insertPosition <= _lastEventPosition + _lastEventCount)
             {
-                _lastEventCount += count;
-                _lastEventPosition = Math.Min(position, _lastEventPosition);
+                _lastEventCount += itemPosition;
+                _lastEventPosition = Math.Min(insertPosition, _lastEventPosition);
 
                 return;
             }
             
             DispatchLastEvent();
-
-            _lastEventCount = count;
-            _lastEventPosition = position;
+            
+            _lastEventCount = itemPosition;
+            _lastEventPosition = insertPosition;
             _lastEventType = TypeAdd;
         }
 

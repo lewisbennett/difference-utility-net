@@ -4,6 +4,8 @@ using DifferenceUtility.Net.Base;
 namespace DifferenceUtility.Net.CollectionUpdateCallbacks
 {
     public class ObservableCollectionUpdateCallback<TOld, TNew> : ICollectionUpdateCallback
+        where TNew : class
+        where TOld : class
     {
         #region Fields
         private readonly IDiffCallback<TOld, TNew> _diffCallback;
@@ -19,27 +21,36 @@ namespace DifferenceUtility.Net.CollectionUpdateCallbacks
             for (var i = 0; i < count; i++)
                 _diffCallback.UpdateContents(_observableCollection[i + position], _newArray[datasourcePosition]);
         }
-        
+
         /// <inheritdoc />
-        public void OnInserted(int position, int count)
+        public void OnInserted(int insertPosition, int itemPosition)
         {
-            for (var i = 0; i < count; i++)
-            {
-                var index = i + position;
-                var item = _diffCallback.ConstructFinalItem(_newArray[index]);
-                
-                if (index > _observableCollection.Count - 1)
-                    _observableCollection.Add(item);
-                
-                else
-                    _observableCollection.Insert(index, item);
-            }
+            var item = _diffCallback.ConstructFinalItem(_newArray[itemPosition]);
+            
+            if (insertPosition > _observableCollection.Count - 1)
+                _observableCollection.Add(item);
+            
+            else
+                _observableCollection.Insert(insertPosition, item);
+            
+            // for (var i = 0; i < itemPosition; i++)
+            // {
+            //     var index = i + insertPosition;
+            //     var item = _diffCallback.ConstructFinalItem(_newArray[index]);
+            //
+            //     if (index > _observableCollection.Count - 1)
+            //         _observableCollection.Add(item);
+            //
+            //     else
+            //         _observableCollection.Insert(index, item);
+            // }
         }
 
         /// <inheritdoc />
         public void OnMoved(int fromPosition, int toPosition)
         {
-            _observableCollection.Move(fromPosition, toPosition);
+            if (fromPosition != toPosition)
+                _observableCollection.Move(fromPosition, toPosition);
         }
         
         /// <inheritdoc />
