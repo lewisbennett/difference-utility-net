@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
 using DifferenceUtility.Net.Benchmarks.Data;
 
@@ -32,11 +31,11 @@ namespace DifferenceUtility.Net.Benchmarks
             
             // Comment/uncomment required benchmarks.
 #if DEBUG
-            BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Guid>(new DebugInProcessConfig());
-            // BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Int>(new DebugInProcessConfig());
+            BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Guid>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
+            BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Int>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
 #else
             BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Guid>();
-            // BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Int>();
+            BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Int>();
 #endif
         }
         #endregion

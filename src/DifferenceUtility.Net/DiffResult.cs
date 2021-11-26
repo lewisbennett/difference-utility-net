@@ -67,12 +67,12 @@ namespace DifferenceUtility.Net
 
                     if ((payload & DiffOperation.Update) != 0)
                     {
-                        var finalOffset = currentX;
+                        var finalOffset = 0;
                         
                         // Apply any offsets.
                         foreach (var (xPosition, offset) in offsets)
                         {
-                            if (finalOffset >= xPosition)
+                            if (currentX + finalOffset >= xPosition)
                                 finalOffset += offset;
                         }
                         

@@ -20,35 +20,42 @@ namespace DifferenceUtility.Net.Benchmarks
         #region Benchmark Methods
         [Benchmark]
         [ArgumentsSource(nameof(GetBenchmarkData))]
-        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Insertions_Gen(BenchmarkData<int> benchmarkData)
+        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Insertions(BenchmarkData<int> benchmarkData)
         {
             return DiffUtil.CalculateDiff(benchmarkData.OriginalData, benchmarkData.InsertionTestData, _personDiffCallback);
         }
         
         [Benchmark]
         [ArgumentsSource(nameof(GetBenchmarkData))]
-        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Moves_Gen(BenchmarkData<int> benchmarkData)
+        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Moves(BenchmarkData<int> benchmarkData)
+        {
+            return DiffUtil.CalculateDiff(benchmarkData.OriginalData, benchmarkData.MovesTestData, _personDiffCallback, false);
+        }
+        
+        [Benchmark]
+        [ArgumentsSource(nameof(GetBenchmarkData))]
+        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Moves_DetectMoves(BenchmarkData<int> benchmarkData)
         {
             return DiffUtil.CalculateDiff(benchmarkData.OriginalData, benchmarkData.MovesTestData, _personDiffCallback);
         }
         
         [Benchmark]
         [ArgumentsSource(nameof(GetBenchmarkData))]
-        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Removals_Gen(BenchmarkData<int> benchmarkData)
+        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Removals(BenchmarkData<int> benchmarkData)
         {
             return DiffUtil.CalculateDiff(benchmarkData.OriginalData, benchmarkData.RemovalsTestData, _personDiffCallback);
         }
         
         [Benchmark]
         [ArgumentsSource(nameof(GetBenchmarkData))]
-        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Updates_Gen(BenchmarkData<int> benchmarkData)
+        public DiffResult<Person<int>, Person<int>> CalculateDiffResult_Updates(BenchmarkData<int> benchmarkData)
         {
             return DiffUtil.CalculateDiff(benchmarkData.OriginalData, benchmarkData.UpdatesTestData, _personDiffCallback);
         }
         #endregion
         
         #region Helper Methods
-        public IEnumerable<object> GetBenchmarkData()
+        public static IEnumerable<object> GetBenchmarkData()
         {
             using var streamReader = new StreamReader(Path.Combine(Environment.GetEnvironmentVariable("PROJECT_DIRECTORY"), $"TestData/test_data_int_{Program.TestCount}.json"));
             
