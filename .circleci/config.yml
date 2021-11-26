@@ -7,8 +7,9 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Build Solution
+          name: Build Project
           command: dotnet build -c Release
+          working_directory: src/DifferenceUtility.Net
       - run:
           name: Push DifferenceUtility.Net to NuGet
           command: dotnet nuget push *.nupkg --api-key $NUGET_API_KEY --source $NUGET_SOURCE
