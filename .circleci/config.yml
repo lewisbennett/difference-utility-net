@@ -1,0 +1,28 @@
+version: 2.1
+
+jobs:
+  build-net:
+    docker:
+      - image: mcr.microsoft.com/dotnet/sdk:5.0
+    steps:
+      - checkout
+      - run:
+          name: Build Solution
+          command: dotnet build -c Release
+      - run:
+          name: Push DifferenceUtility.Net to NuGet
+          command: dotnet nuget push *.nupkg --api-key $NUGET_API_KEY --source $NUGET_SOURCE
+          working_directory: src/DifferenceUtility.Net/bin/Release
+
+workflows:
+  version: 2
+  main:
+    jobs:
+    - build-net:
+        context:
+            - NuGet
+        filters:
+            branches:
+                only:
+                - master
+                - develop
