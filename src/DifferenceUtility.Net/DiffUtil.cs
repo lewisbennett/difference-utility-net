@@ -42,8 +42,6 @@ namespace DifferenceUtility.Net
             [NotNull] IEnumerable<TNew> newCollection,
             [NotNull] IDiffCallback<TOld, TNew> diffCallback,
             bool detectMoves = true)
-            where TNew : class
-            where TOld : class
         {
             var oldArray = oldCollection as TOld[] ?? oldCollection?.ToArray() ?? throw new ArgumentNullException(nameof(oldCollection));
             var newArray = newCollection as TNew[] ?? newCollection?.ToArray() ?? throw new ArgumentNullException(nameof(newCollection));

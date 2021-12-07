@@ -2,7 +2,7 @@
 using Sample.Assets;
 using System.Collections.Generic;
 
-namespace Sample.NetConsole
+namespace Sample.NetConsole.People
 {
     public class PersonDiffCallback : BaseDiffCallback<Person, Person>
     {

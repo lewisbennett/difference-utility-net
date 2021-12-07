@@ -6,7 +6,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Sample.NetConsole
+namespace Sample.NetConsole.People
 {
     public static class Program
     {

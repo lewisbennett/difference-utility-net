@@ -4,8 +4,6 @@ using DifferenceUtility.Net.Base;
 namespace DifferenceUtility.Net.CollectionUpdateCallbacks
 {
     public class ObservableCollectionUpdateCallback<TOld, TNew> : ICollectionUpdateCallback
-        where TNew : class
-        where TOld : class
     {
         #region Fields
         private readonly IDiffCallback<TOld, TNew> _diffCallback;

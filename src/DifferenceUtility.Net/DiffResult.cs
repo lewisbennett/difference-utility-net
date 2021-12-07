@@ -13,8 +13,6 @@ namespace DifferenceUtility.Net
     /// <para>You can consume updates in a DiffResult via <see cref="DispatchUpdatesTo(ObservableCollection{TOld})" />.</para>
     /// </summary>
     public class DiffResult<TOld, TNew>
-        where TNew : class
-        where TOld : class
     {
         #region Fields
         private readonly IList<int> _path;
