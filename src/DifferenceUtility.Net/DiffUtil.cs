@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Reflection;
 using DifferenceUtility.Net.Base;
+using DifferenceUtility.Net.Extensions;
 using DifferenceUtility.Net.Helper;
 
 namespace DifferenceUtility.Net
@@ -26,25 +26,13 @@ namespace DifferenceUtility.Net
     /// 
     /// <para>If the collections are large, this operations may take significant time, so you are advised to run this on a background thread, get the
     /// <see cref="DiffResult{TOld,TNew}" />, then apply it on the main thread.</para>
-    /// 
-    /// <para>This algorithm is optimized for space and uses O(N) space to find the minimal number of addition and removal operations between the two
-    /// collections. It has O(N + D^2) expected time performance, where D is the length of the edit script.</para>
-    /// 
-    /// <para>If move detection is enabled, it takes an additional O(N^2) time, where N is the total number of added and removed items. If your
-    /// collections are already sorted by the same constraint (e.e. a created timestamp for a collection of posts), you can disable move detection
-    /// to improve performance.</para>
-    /// 
-    /// <para>The actual runtime of the algorithm significantly depends on the number of changes in the collection and the cost of your comparison methods.</para>
-    /// 
-    /// <para>Due to implementation constraints, the maximum size of the collection can be 2^26.</para>
     /// </summary>
     public static class DiffUtil
     {
         #region Public Methods
         /// <summary>
         /// <para>Calculates a set of update operations that can convert <paramref name="oldCollection" /> into <paramref name="newCollection" />.</para>
-        /// <para>If your old and new collections are sorted by the same constraint and items never move (swap positions), you can disable move detection
-        /// which takes <c>O(N^2)</c> time, where N is the number of added, moved, or removed items.</para>
+        /// <para>If your old and new collections are sorted by the same constraint and items never move (swap positions), you can disable move detection.</para>
         /// </summary>
         /// <param name="diffCallback">A callback for calculating the difference between the provided collections.</param>
         /// <param name="detectMoves"><c>true</c> if DiffUtil should try to detect moved items, <c>false</c> otherwise.</param>
@@ -62,10 +50,19 @@ namespace DifferenceUtility.Net
 
             if (diffCallback is null)
                 throw new ArgumentNullException(nameof(diffCallback));
-            
-            var diagonals = new List<(int X, int Y)>();
 
-            // Find all item matches (diagonals).
+            if (oldArray.Length == 0 && newArray.Length == 0)
+                return DiffResult<TOld, TNew>.Empty();
+
+            // Guaranteed to be no diagonals if either array is empty.
+            if (oldArray.Length == 0 || newArray.Length == 0)
+                return DiffResult<TOld, TNew>.NoDiagonals(diffCallback, oldArray, newArray);
+
+            // The maximum possible path size is the sum of the size of both collections.
+            var diagonals = new List<Diagonal>();
+
+            var longestCommonSubsequenceLength = 0;
+
             for (var x = 0; x < oldArray.Length; x++)
             {
                 for (var y = 0; y < newArray.Length; y++)
@@ -73,83 +70,106 @@ namespace DifferenceUtility.Net
                     if (!diffCallback.AreItemsTheSame(oldArray[x], newArray[y]))
                         continue;
 
-                    // There should only be a maximum of 1 diagonal per column, so break once it has been found.
-                    diagonals.Add((x, y));
+                    var score = 1;
+                    
+                    foreach (var diagonal in diagonals)
+                    {
+                        // If the current X/Y coordinates exist within range of the query coordinates,
+                        // the query coordinates will both be less than the current X/Y coordinates.
+                        if (diagonal.X < x && diagonal.Y < y)
+                            score = Math.Max(score, diagonal.Score + 1);
+                    }
+
+                    diagonals.Add(new Diagonal
+                    {
+                        Score = score,
+                        X = x,
+                        Y = y
+                    });
+
+                    longestCommonSubsequenceLength = Math.Max(longestCommonSubsequenceLength, score);
                     
                     break;
                 }
             }
+            
+            // If the longest common subsequence is zero then there are no diagonals in the matrix.
+            if (longestCommonSubsequenceLength == 0)
+                return DiffResult<TOld, TNew>.NoDiagonals(diffCallback, oldArray, newArray);
 
-            // Add the furthest possible point so that we can find a path from beginning to end.
-            diagonals.Add((oldArray.Length, newArray.Length));
+            // By now, we have every diagonal in the matrix, as well as their scores for calculating the shortest possible path.
             
             var path = new List<int>();
-
-            var currentX = 0;
-            var currentY = 0;
-
-            var diagonalIndex = 0;
             
-            // Diagonals are removed after retrieving them so that, by the end of the below loop, the only
-            // diagonals remaining are those that aren't used in the final path. These will be used later
-            // for calculating move operations later, if detect moves is enabled.
-            var currentTarget = diagonals[diagonalIndex];
-            diagonals.RemoveAt(diagonalIndex);
-
-            while (currentX < oldArray.Length || currentY < newArray.Length)
+            var currentX = oldArray.Length - 1;
+            var currentY = newArray.Length - 1;
+            
+            // Construct the path.
+            while (longestCommonSubsequenceLength > 0)
             {
-                // Prioritise horizontal moves (removals) over vertical moves (insertions).
-                while (currentX < currentTarget.X)
+                var index = 0;
+                
+                while (index < diagonals.Count)
                 {
-                    path.Add((currentX << DiffOperation.Offset) | DiffOperation.Remove);
-                    
-                    currentX++;
-                }
+                    var diagonal = diagonals[index];
 
-                while (currentY < currentTarget.Y)
-                {
-                    path.Add((currentY << DiffOperation.Offset) | DiffOperation.Insert);
-
-                    currentY++;
-                }
-                
-                // Diagonals are no longer possible once X or Y reaches the end.
-                if (currentX == oldArray.Length || currentY == newArray.Length)
-                    continue;
-                
-                // Add the diagonal.
-                var diagonalPayload = DiffOperation.NoOperation;
-
-                if (!diffCallback.AreContentsTheSame(oldArray[currentX], newArray[currentY]))
-                    diagonalPayload |= DiffOperation.Update;
-                
-                path.Add(diagonalPayload);
-
-                // Increment diagonally.
-                currentX++;
-                currentY++;
-                
-                // Get the next diagonal that is within range of the current coordinates.
-                while (diagonalIndex < diagonals.Count)
-                {
-                    var diagonal = diagonals[diagonalIndex];
-
-                    if (diagonal.X < currentX || diagonal.Y < currentY)
+                    // Check that the diagonal is within backwards range of the current coordinates.
+                    if (diagonal.Score != longestCommonSubsequenceLength || diagonal.X > currentX || diagonal.Y > currentY)
                     {
-                        // Only increment the diagonal index if we're skipping this diagonal.
-                        diagonalIndex++;
-                        
+                        index++;
                         continue;
                     }
-                    
-                    // Since we remove the diagonal, the index we're querying stays the same.
-                    currentTarget = diagonal;
-                    diagonals.RemoveAt(diagonalIndex);
-                    
+
+                    // Calculate the path between the current coordinates and the diagonal. We start with Y since we're working in reverse order.
+                    while (currentY > diagonal.Y)
+                    {
+                        path.Add(0, (currentY << DiffOperation.Offset) | DiffOperation.Insert);
+
+                        currentY--;
+                    }
+
+                    while (currentX > diagonal.X)
+                    {
+                        path.Add(0, (currentX << DiffOperation.Offset) | DiffOperation.Remove);
+
+                        currentX--;
+                    }
+
+                    // Now, handle the diagonal.
+                    var diagonalPayload = DiffOperation.NoOperation;
+
+                    if (!diffCallback.AreContentsTheSame(oldArray[currentX], newArray[currentY]))
+                        diagonalPayload |= DiffOperation.Update;
+
+                    path.Add(0, diagonalPayload);
+
+                    currentX--;
+                    currentY--;
+
+                    longestCommonSubsequenceLength--;
+
+                    // Remove the diagonal so it doesn't interfere with move calculation later on, if enabled.
+                    diagonals.Remove(diagonal);
+
                     break;
                 }
             }
-
+            
+            // Now we need to fill the gap between X0 Y0 and the first diagonal.
+            while (currentY >= 0)
+            {
+                path.Add(0, (currentY << DiffOperation.Offset) | DiffOperation.Insert);
+                
+                currentY--;
+            }
+            
+            while (currentX >= 0)
+            {
+                path.Add(0, (currentX << DiffOperation.Offset) | DiffOperation.Remove);
+                
+                currentX--;
+            }
+            
             if (!detectMoves)
                 return new DiffResult<TOld, TNew>(diffCallback, oldArray, newArray, path);
 
@@ -166,7 +186,7 @@ namespace DifferenceUtility.Net
                     var payload = path[i];
                     
                     // Skip this item if the payload already has the move flag.
-                    // If an item has already been processed, what w as previously an encoded X coordinate will now be an encoded Y,
+                    // If an item has already been processed, what was previously an encoded X coordinate will now be an encoded Y,
                     // coordinate and vice versa. If these new values match a non-processed value, this may select the wrong indexes.
                     if ((payload & DiffOperation.Move) != 0)
                         continue;

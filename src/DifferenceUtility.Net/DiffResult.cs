@@ -30,6 +30,9 @@ namespace DifferenceUtility.Net
         /// <param name="observableCollection">A collection which is displaying the old collection, and will start displaying the new collection.</param>
         public void DispatchUpdatesTo([NotNull] ObservableCollection<TOld> observableCollection)
         {
+            if (IsEmpty())
+                return;
+            
             if (observableCollection is null)
                 throw new ArgumentNullException(nameof(observableCollection));
             
@@ -43,6 +46,9 @@ namespace DifferenceUtility.Net
         /// <param name="updateCallback">The callback to receive the update operations.</param>
         public void DispatchUpdatesTo([NotNull] ICollectionUpdateCallback updateCallback)
         {
+            if (IsEmpty())
+                return;
+            
             if (updateCallback is null)
                 throw new ArgumentNullException(nameof(updateCallback));
             
@@ -175,16 +181,38 @@ namespace DifferenceUtility.Net
                         postponedUpdate.X += offset;
                 }
 
-                // Tracks the number of postponed updates with a Y coordinate less than the current operation's Y value.
-                var postponedUpdateCount = 0;
-                
-                foreach (var update in postponedUpdates)
+                foreach (var (updateX, updateY) in postponedUpdates)
                 {
-                    if (postponedUpdate.Y > update.Y)
-                        postponedUpdateCount++;
-                }
+                    // Future moves (postponed updates) may affect our current target index (Y coordinate of the postponed update we're handling).
+                    // Such operations will have a start (X coordinate) and finish (Y coordinate) position on either side of our current target index.
+                    // Operations that exist purely on one side of our current target index will not affect the current target index when they are handled.
+                    // We must apply an offset to counter the effect of any future operations that will affect our current target index in order for items
+                    // to be moved correctly now, and result in the correct position later. Refer to the below example:
+                    
+                    // Source:      B A D F H L O C Z
+                    // Destination: A Z H B D F C
 
-                postponedUpdate.Y -= postponedUpdateCount;
+                    // During the path for the above data, we reach a point where the collection looks like this: A B D F H L O C Z
+                    // As you can see in the destination, 'H' comes before the sequence 'B D F', which has already been established due to prior moves.
+                    // In the calculated path, 'H' is instructed to move to position 2, which is its final position in the destination collection, and
+                    // also where it would already be if move detection was disabled. Since we're using move detection however, this position requires
+                    // offsetting in order to be correct by the end of the sequence.
+                    
+                    // We can see that 'Z', which is currently located at the end of the collection, comes before 'H' in the final destination. This is
+                    // a prime example of the offset described above and calculated below. The operation to move 'Z' is currently postponed and therefore,
+                    // 'Z' is not located at position 1 yet, which means that 'H' would be in the wrong position if we were to move it to the exact value
+                    // encoded in its payload. The postponed update for 'Z' has coordinates X8, Y1. The target index for 'H' (2) fits between these values,
+                    // so now we know it will be affected when the postponed update for 'Z' is handled. Since the target index for 'Z' (1) is less than 'H',
+                    // we know the position of 'H' will increase, so we negatively offset the target index for 'H' in order for everything to line up later.
+                    
+                    // This is confusing, I know.
+
+                    if (updateX > postponedUpdate.Y && updateY < postponedUpdate.Y)
+                        postponedUpdate.Y--;
+                    
+                    else if (updateX < postponedUpdate.Y && updateY > postponedUpdate.Y)
+                        postponedUpdate.Y++;
+                }
                 
                 if ((payload & DiffOperation.Update) != 0)
                     batchingCallback.OnChanged(postponedUpdate.X, postponedUpdate.Y, 1);
@@ -203,6 +231,45 @@ namespace DifferenceUtility.Net
             _diffCallback = diffCallback;
             _newArray = newArray;
             _oldArray = oldArray;
+        }
+        #endregion
+        
+        #region Private Methods
+        private bool IsEmpty()
+        {
+            return _path is null || _path.Count == 0 || _diffCallback is null || _oldArray is null || _newArray is null || _oldArray.Length == 0 && _newArray.Length == 0;
+        }
+        #endregion
+        
+        #region Static Fields
+        private static DiffResult<TOld, TNew> _emptyDiffResult;
+        #endregion
+        
+        #region Internal Static Methods
+        /// <summary>
+        /// Gets an empty <see cref="DiffResult{TOld,TNew}" /> that takes zero action when applied.
+        /// </summary>
+        internal static DiffResult<TOld, TNew> Empty()
+        {
+            return _emptyDiffResult ??= new DiffResult<TOld, TNew>(null, null, null, null);
+        }
+
+        /// <summary>
+        /// Gets a configured <see cref="DiffResult{TOld,TNew}" /> that ignores diagonals.
+        /// </summary>
+        internal static DiffResult<TOld, TNew> NoDiagonals(IDiffCallback<TOld, TNew> diffCallback, TOld[] oldArray, TNew[] newArray)
+        {
+            var path = new int[oldArray.Length + newArray.Length];
+            
+            // Add X/remove operations first.
+            for (var x = 0; x < oldArray.Length; x++)
+                path[x] = (x << DiffOperation.Offset) | DiffOperation.Remove;
+            
+            // Then add Y/insert operations.
+            for (var y = 0; y < newArray.Length; y++)
+                path[y + oldArray.Length] = (y << DiffOperation.Offset) | DiffOperation.Insert;
+
+            return new DiffResult<TOld, TNew>(diffCallback, oldArray, newArray, path);
         }
         #endregion
     }

@@ -24,12 +24,12 @@ namespace Sample.NetConsole
             // nwpalgfbds
             // mlfsgbadnhzx
             
-            // var source = new ObservableCollection<CharWrapper>("badfhlocz".Select(x => new CharWrapper
+            // var source = new ObservableCollection<CharWrapper>("nwpalgfbds".Select(x => new CharWrapper
             // {
             //     C = x
             // }));
             //
-            // var destination = "azhbdfc".Select(x => new CharWrapper
+            // var destination = "mlfsgbadnhzx".Select(x => new CharWrapper
             // {
             //     C = x
             // });
