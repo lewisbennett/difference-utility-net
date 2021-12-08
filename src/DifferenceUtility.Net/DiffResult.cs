@@ -179,6 +179,8 @@ namespace DifferenceUtility.Net
                         postponedUpdate.X += offset;
                 }
 
+                var yOffset = 0;
+                
                 foreach (var (updateX, updateY) in postponedUpdates)
                 {
                     // Future moves (postponed updates) may affect our current target index (Y coordinate of the postponed update we're handling).
@@ -205,12 +207,31 @@ namespace DifferenceUtility.Net
                     
                     // This is confusing, I know.
 
-                    if (updateX > postponedUpdate.Y && updateY < postponedUpdate.Y)
-                        postponedUpdate.Y--;
+                    var mutableUpdateX = updateX;
                     
-                    else if (updateX < postponedUpdate.Y && updateY > postponedUpdate.Y)
-                        postponedUpdate.Y++;
+                    foreach (var (xPosition, offset) in offsets)
+                    {
+                        if (mutableUpdateX >= xPosition)
+                            mutableUpdateX += offset;
+                    }
+
+                    if (mutableUpdateX <= postponedUpdate.Y)
+                    {
+                        yOffset++;
+                    }
+                    else if (updateY < postponedUpdate.Y)
+                    {
+                        yOffset--;
+                    }
+
+                    // if (updateX <= postponedUpdate.X && updateY >= postponedUpdate.Y)
+                    //     yOffset++;
+                    //
+                    // else if (updateX >= postponedUpdate.X && updateY <= postponedUpdate.Y)
+                    //     yOffset--;
                 }
+
+                postponedUpdate.Y += yOffset;
                 
                 if ((payload & DiffOperation.Update) != 0)
                     batchingCallback.OnChanged(postponedUpdate.X, postponedUpdate.Y, 1);

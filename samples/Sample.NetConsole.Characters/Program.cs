@@ -10,8 +10,8 @@ using Sample.NetConsole.Characters;
 // mlfsgbadnhzx
 
 // Replace these strings to test difference calculation. The strings must only contain unique characters (i.e. no duplicates).
-const string source = "badfhlocz";
-const string destination = "azhbdfc";
+const string source = "azhbdfc";
+const string destination = "badfhlocz";
 
 // Create our items source with initial data.
 var data = new ObservableCollection<char>(source);
