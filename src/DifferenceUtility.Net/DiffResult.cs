@@ -244,6 +244,7 @@ namespace DifferenceUtility.Net
 
             while (true)
             {
+                var hasChanged = false;
                 var newYOffset = 0;
                 
                 foreach (var postponedOperation in _postponedOperations)
@@ -264,7 +265,8 @@ namespace DifferenceUtility.Net
                     
                     else
                         continue;
-                    
+
+                    hasChanged = true;
                     
                     
                     // The postponed operation's X value would increase if we were to insert at the current adjusted Y,
@@ -294,7 +296,7 @@ namespace DifferenceUtility.Net
                     postponedOperations.Remove(postponedOperation);
                 }
                 
-                if (newYOffset == 0)
+                if (!hasChanged)
                     break;
 
                 yOffset += newYOffset;

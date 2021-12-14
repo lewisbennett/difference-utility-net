@@ -5,6 +5,8 @@ using Sample.NetConsole.Reliability;
 // Fill with strings that contain no duplicate characters.
 var strings = new[]
 {
+    "abc",
+    "wxyz",
     "badfhlocz",
     "azhbdfc",
     "nwpalgfbds",
@@ -16,7 +18,12 @@ var strings = new[]
     "p1203na9sef8w4ytg7",
     "laogh4ns208zp93wf",
     "wa4ynpltg3297fbds",
-    "zopadnhx93wgf84mlsb"
+    "zopadnhx93wgf84mlsb",
+    "abdflns208zp93wchog",
+    "abcdefghijklmnopqrstuvwxyz",
+    "zyxwvutsrqponmlkjihgfedcba",
+    "1234567890",
+    "0987654321"
 };
 
 var data = new ObservableCollection<char>();
@@ -52,7 +59,7 @@ foreach (var @string in strings)
 }
 
 Console.WriteLine("Done!");
-Console.WriteLine($"Success: {successes.Count}");
+Console.WriteLine($"Successes: {successes.Count}");
 Console.WriteLine($"Failures: {failures.Count}");
 Console.WriteLine();
 
