@@ -18,6 +18,9 @@ using Sample.NetConsole.Characters;
 // p1203na9sef8w4ytg7
 // laogh4ns208zp93wf
 
+// wa4ynpltg3297fbds
+// zopadnhx93wgf84mlsb
+
 // Replace these strings to test difference calculation. The strings must only contain unique characters (i.e. no duplicates).
 const string source = "azhbdfc";
 const string destination = "badfhlocz";

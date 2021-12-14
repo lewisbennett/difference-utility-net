@@ -174,7 +174,7 @@ namespace DifferenceUtility.Net
                 else if (offsetPostponedX < offsetPostponedY)
                 {
                     CreateXOffset(offsetPostponedX, -1, postponedOperationId);
-                    CreateXOffset(offsetPostponedY + 1, 1, operationId);
+                    CreateXOffset(offsetPostponedY, 1, operationId);
                 }
             }
 
