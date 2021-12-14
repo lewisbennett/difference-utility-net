@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Xml;
 using DifferenceUtility.Net.Base;
 using DifferenceUtility.Net.CollectionUpdateCallbacks;
 using DifferenceUtility.Net.Helper;
@@ -11,7 +10,7 @@ using DifferenceUtility.Net.Helper;
 namespace DifferenceUtility.Net
 {
     /// <summary>
-    /// <para>This class hold the information about the result of a <see cref="DiffUtil.CalculateDiff{T,T}" /> call.</para>
+    /// <para>This class holds the information about the result of a <see cref="DiffUtil.CalculateDiff{T,T}" /> call.</para>
     /// <para>You can consume updates in a DiffResult via <see cref="DispatchUpdatesTo(ObservableCollection{TOld})" />.</para>
     /// </summary>
     public class DiffResult<TOld, TNew>
@@ -32,12 +31,12 @@ namespace DifferenceUtility.Net
         /// <param name="observableCollection">A collection which is displaying the old collection, and will start displaying the new collection.</param>
         public void DispatchUpdatesTo([NotNull] ObservableCollection<TOld> observableCollection)
         {
-            if (IsEmpty())
-                return;
-            
             if (observableCollection is null)
                 throw new ArgumentNullException(nameof(observableCollection));
             
+            if (IsEmpty())
+                return;
+
             DispatchUpdatesTo(new ObservableCollectionUpdateCallback<TOld, TNew>(_diffCallback, observableCollection, _oldArray, _newArray));
         }
         
@@ -48,12 +47,12 @@ namespace DifferenceUtility.Net
         /// <param name="updateCallback">The callback to receive the update operations.</param>
         public void DispatchUpdatesTo([NotNull] ICollectionUpdateCallback updateCallback)
         {
-            if (IsEmpty())
-                return;
-            
             if (updateCallback is null)
                 throw new ArgumentNullException(nameof(updateCallback));
             
+            if (IsEmpty())
+                return;
+
             if (updateCallback is not BatchingCollectionUpdateCallback batchingCallback)
                 batchingCallback = new BatchingCollectionUpdateCallback(updateCallback);
             
@@ -67,16 +66,13 @@ namespace DifferenceUtility.Net
             {
                 var operation = _path[operationId];
 
-                // Diagonal movement.
-                if ((operation & DiffOperation.NoOperation) != 0)
+                // The only way an operation can be zero is if it's a diagonal without the update flag.
+                if (operation == 0)
                 {
-                    // Diagonals don't contain any coordinates, so just increment normally.
+                    // Diagonal operations don't contain any coordinates, so just increment normally.
                     currentX++;
                     currentY++;
                     
-                    if ((operation & DiffOperation.Update) != 0)
-                        batchingCallback.OnChanged(OffsetX(currentX), currentY, 1);
-
                     continue;
                 }
                 
@@ -92,7 +88,7 @@ namespace DifferenceUtility.Net
                     // Regular insertion if no move flag.
                     if ((operation & DiffOperation.Move) == 0)
                     {
-                        var offsetY = OffsetY(currentY);
+                        var offsetY = OffsetY(currentY, currentY);
                         
                         batchingCallback.OnInserted(offsetY, currentY);
 
@@ -144,6 +140,17 @@ namespace DifferenceUtility.Net
                     postponedX = currentX;
                     postponedY = y;
                 }
+                // If the operation isn't an insert or remove, but has the update flag, treat it as a diagonal.
+                else if ((operation & DiffOperation.Update) != 0)
+                {
+                    // Diagonal operations don't contain any coordinates, so just increment normally.
+                    currentX++;
+                    currentY++;
+                    
+                    batchingCallback.OnChanged(OffsetX(currentX), currentY, 1);
+                    
+                    continue;
+                }
                 else
                     continue;
 
@@ -151,23 +158,23 @@ namespace DifferenceUtility.Net
 
                 // Apply offsets.
                 var offsetPostponedX = OffsetX(postponedX);
-                var offsetPostponedY = OffsetY(postponedY);
+                var offsetPostponedY = OffsetY(offsetPostponedX, postponedY);
                 
                 if ((operation & DiffOperation.Update) != 0)
                     batchingCallback.OnChanged(offsetPostponedX, postponedY, 1);
 
                 batchingCallback.OnMoved(offsetPostponedX, offsetPostponedY);
-
+                
                 // Create the offsets as a result of the move operation.
                 if (offsetPostponedX > offsetPostponedY)
                 {
-                    CreateXOffset(offsetPostponedY + 1, 1, postponedOperationId);
+                    CreateXOffset(offsetPostponedY, 1, postponedOperationId);
                     CreateXOffset(offsetPostponedX + 1, -1, operationId);
                 }
                 else if (offsetPostponedX < offsetPostponedY)
                 {
                     CreateXOffset(offsetPostponedX, -1, postponedOperationId);
-                    CreateXOffset(offsetPostponedY, 1, operationId);
+                    CreateXOffset(offsetPostponedY + 1, 1, operationId);
                 }
             }
 
@@ -191,9 +198,9 @@ namespace DifferenceUtility.Net
             for (var i = 0; i < _offsets.Count; i++)
             {
                 var (queryOperationId, (queryFrom, queryOffset)) = _offsets.ElementAt(i);
-
-                // Offset the offset's 'from' position if it's affected by the new offset.
-                if (queryFrom > from)
+                
+                // The provided offset should be applied to offsets that are positioned after the provided 'from' position.
+                if (from < queryFrom)
                     _offsets[queryOperationId] = (queryFrom + offset, queryOffset);
             }
             
@@ -217,26 +224,68 @@ namespace DifferenceUtility.Net
             return x;
         }
 
-        private int OffsetY(int y)
+        private int OffsetY(int offsetX, int y)
         {
             var yOffset = 0;
 
-            foreach (var ((operationX, operationY), _) in _postponedOperations)
-            {
-                var offsetOperationX = OffsetX(operationX);
+            var postponedOperations = _postponedOperations.ToDictionary(p => p.Key, p => p.Value);
 
-                // The postponed operation's X value would increase if we were to insert at the current adjusted Y,
-                // and the postponed operation's X value is greater than or equal to the adjusted Y.
-                if (offsetOperationX >= y + yOffset)
-                    offsetOperationX++;
+            while (true)
+            {
+                var newYOffset = 0;
                 
-                // Decrement the offset for operations who's Y value is less than Y and are currently located after Y, relative to the adjusted position.
-                if (operationY < y && offsetOperationX > y + yOffset)
-                    yOffset--;
+                foreach (var (operationCoordinates, _) in _postponedOperations)
+                {
+                    if (!postponedOperations.ContainsKey(operationCoordinates))
+                        continue;
+                    
+                    var offsetOperationX = OffsetX(operationCoordinates.X);
+
+                    var tempYOffset = yOffset + newYOffset;
+                    
+                    // Insertions only, not moves.
+                    if (operationCoordinates.Y < y && offsetOperationX >= y + tempYOffset)
+                        newYOffset--;
+                    
+                    else if (operationCoordinates.Y > y && offsetOperationX <= y + tempYOffset)
+                        newYOffset++;
+                    
+                    else
+                        continue;
+                    
+                    
+                    
+                    // The postponed operation's X value would increase if we were to insert at the current adjusted Y,
+                    // and the postponed operation's X value is greater than or equal to the adjusted Y.
+                    // if (offsetOperationX < offsetX && offsetOperationX >= y + tempYOffset)
+                    //     offsetOperationX++;
+                    //
+                    // else if (offsetOperationX > offsetX && offsetOperationX <= y + tempYOffset)
+                    //     offsetOperationX--;
+                    //
+                    // // Comparing the operation's Y value to the provided, unmodified Y value tells us where the items are meant
+                    // // to be in relation to each other at the end of the sequence. We use this information to determine whether
+                    // // the postponed operation will cause the item at the current Y position to move later on.
+                    //
+                    // // If the item represented by the postponed operation is positioned before the item represented by Y in the destination collection,
+                    // // check if the postponed item is currently positioned after the current item to determine whether the operation will provide a positive
+                    // // offset when it is eventually processed. If it will, decrement the Y offset to counter this.
+                    // if (operationCoordinates.Y < y && offsetOperationX > y + tempYOffset)
+                    //     newYOffset--;
+                    //
+                    // else if (operationCoordinates.Y > y && offsetOperationX < y + tempYOffset)
+                    //     newYOffset++;
+                    //
+                    // else
+                    //     continue;
+
+                    postponedOperations.Remove(operationCoordinates);
+                }
                 
-                // Increment the offset for operations who's Y value is greater than Y and are currently located before Y, relative to the adjusted position.
-                else if (operationY > y && offsetOperationX < y + yOffset)
-                    yOffset++;
+                if (newYOffset == 0)
+                    break;
+
+                yOffset += newYOffset;
             }
             
             return y + yOffset;

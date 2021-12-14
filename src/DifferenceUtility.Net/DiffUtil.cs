@@ -56,8 +56,9 @@ namespace DifferenceUtility.Net
             if (oldArray.Length == 0 || newArray.Length == 0)
                 return DiffResult<TOld, TNew>.NoDiagonals(diffCallback, oldArray, newArray);
 
-            // The maximum possible path size is the sum of the size of both collections.
-            var diagonals = new List<Diagonal>();
+            // The maximum number of diagonals is the length of the shortest collection.
+            // Provide a capacity to reduce the number of re-allocations.
+            var diagonals = new List<Diagonal>(Math.Min(oldArray.Length, newArray.Length));
 
             var longestCommonSubsequenceLength = 0;
 
@@ -97,49 +98,54 @@ namespace DifferenceUtility.Net
 
             // By now, we have every diagonal in the matrix, as well as their scores for calculating the shortest possible path.
             
-            var path = new List<int>();
+            var path = new int[oldArray.Length + newArray.Length - longestCommonSubsequenceLength];
             
             var currentX = oldArray.Length - 1;
             var currentY = newArray.Length - 1;
             
+            int GetCurrentPathIndex()
+            {
+                return currentX + currentY - longestCommonSubsequenceLength + 1;
+            }
+            
             // Construct the path.
             while (longestCommonSubsequenceLength > 0)
             {
-                var index = 0;
+                var diagonalIndex = 0;
                 
-                while (index < diagonals.Count)
+                while (diagonalIndex < diagonals.Count)
                 {
-                    var diagonal = diagonals[index];
+                    var diagonal = diagonals[diagonalIndex];
 
                     // Check that the diagonal is within backwards range of the current coordinates.
                     if (diagonal.Score != longestCommonSubsequenceLength || diagonal.X > currentX || diagonal.Y > currentY)
                     {
-                        index++;
+                        diagonalIndex++;
                         continue;
                     }
 
                     // Calculate the path between the current coordinates and the diagonal. We start with Y since we're working in reverse order.
                     while (currentY > diagonal.Y)
                     {
-                        path.Add(0, (currentY << DiffOperation.Offset) | DiffOperation.Insert);
+                        path[GetCurrentPathIndex()] = (currentY << DiffOperation.Offset) | DiffOperation.Insert;
 
                         currentY--;
                     }
 
                     while (currentX > diagonal.X)
                     {
-                        path.Add(0, (currentX << DiffOperation.Offset) | DiffOperation.Remove);
-
+                        path[GetCurrentPathIndex()] = (currentX << DiffOperation.Offset) | DiffOperation.Remove;
+                        
                         currentX--;
                     }
 
                     // Now, handle the diagonal.
-                    var diagonalPayload = DiffOperation.NoOperation;
+                    var diagonalPayload = 0;
 
                     if (!diffCallback.AreContentsTheSame(oldArray[currentX], newArray[currentY]))
                         diagonalPayload |= DiffOperation.Update;
-
-                    path.Add(0, diagonalPayload);
+                    
+                    path[GetCurrentPathIndex()] = diagonalPayload;
 
                     currentX--;
                     currentY--;
@@ -156,14 +162,14 @@ namespace DifferenceUtility.Net
             // Now we need to fill the gap between X0 Y0 and the first diagonal.
             while (currentY >= 0)
             {
-                path.Add(0, (currentY << DiffOperation.Offset) | DiffOperation.Insert);
+                path[GetCurrentPathIndex()] = (currentY << DiffOperation.Offset) | DiffOperation.Insert;
                 
                 currentY--;
             }
             
             while (currentX >= 0)
             {
-                path.Add(0, (currentX << DiffOperation.Offset) | DiffOperation.Remove);
+                path[GetCurrentPathIndex()] = (currentX << DiffOperation.Offset) | DiffOperation.Remove;
                 
                 currentX--;
             }
@@ -179,23 +185,23 @@ namespace DifferenceUtility.Net
             {
                 int? xOperationIndex = null, yOperationIndex = null;
                 
-                for (var i = 0; i < path.Count; i++)
+                for (var i = 0; i < path.Length; i++)
                 {
-                    var payload = path[i];
+                    var operation = path[i];
                     
                     // Skip this item if the payload already has the move flag.
                     // If an item has already been processed, what was previously an encoded X coordinate will now be an encoded Y,
                     // coordinate and vice versa. If these new values match a non-processed value, this may select the wrong indexes.
-                    if ((payload & DiffOperation.Move) != 0)
+                    if ((operation & DiffOperation.Move) != 0)
                         continue;
                     
                     // Nested loop search not required since we're querying both X and Y. With this approach, no matter
                     // which coordinate we find first, it is guaranteed that the next one will be after it in the path.
 
-                    if (!xOperationIndex.HasValue && (payload & DiffOperation.Remove) != 0 && payload >> DiffOperation.Offset == diagonal.X)
+                    if (!xOperationIndex.HasValue && (operation & DiffOperation.Remove) != 0 && operation >> DiffOperation.Offset == diagonal.X)
                         xOperationIndex = i;
 
-                    else if (!yOperationIndex.HasValue && (payload & DiffOperation.Insert) != 0 && payload >> DiffOperation.Offset == diagonal.Y)
+                    else if (!yOperationIndex.HasValue && (operation & DiffOperation.Insert) != 0 && operation >> DiffOperation.Offset == diagonal.Y)
                         yOperationIndex = i;
                     
                     if (xOperationIndex.HasValue && yOperationIndex.HasValue)
@@ -203,7 +209,6 @@ namespace DifferenceUtility.Net
                 }
                 
                 // Both values are required to process a move operation.
-                // Y operation index will always have a value if the X operation index does.
                 if (!xOperationIndex.HasValue || !yOperationIndex.HasValue)
                     continue;
 
