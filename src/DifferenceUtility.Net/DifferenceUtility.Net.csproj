@@ -46,6 +46,7 @@
 		<Compile Include="Extensions\ListExtensions.cs" />
 		<Compile Include="Helper\Diagonal.cs" />
 		<Compile Include="Helper\DiffOperation.cs" />
+		<Compile Include="Helper\PostponedOperation.cs" />
 		<Compile Include="Instructions\**\*.cs" />
 		<PackageReference Include="GitInfo" Version="2.2.0">
 			<PrivateAssets>all</PrivateAssets>

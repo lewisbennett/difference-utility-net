@@ -229,7 +229,7 @@ namespace DifferenceUtility.Net
                 path[yOperationIndex.Value] = (x << DiffOperation.Offset) | DiffOperation.Insert | additionalFlags;
             }
 
-            return new DiffResult<TOld, TNew>(diffCallback, oldArray, newArray, path);
+            return new DiffResult<TOld, TNew>(diffCallback, oldArray, newArray, path, diagonals.Count);
         }
         #endregion
     }

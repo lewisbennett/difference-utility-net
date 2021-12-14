@@ -16,12 +16,13 @@ namespace DifferenceUtility.Net
     public class DiffResult<TOld, TNew>
     {
         #region Fields
-        private readonly IList<int> _path;
+        private readonly int[] _path;
         private readonly IDiffCallback<TOld, TNew> _diffCallback;
+        private readonly int _moveCount;
         private readonly TNew[] _newArray;
         private SortedDictionary<int, (int From, int Offset)> _offsets;
         private readonly TOld[] _oldArray;
-        private Dictionary<(int X, int Y), int> _postponedOperations;
+        private List<PostponedOperation> _postponedOperations;
         #endregion
         
         #region Public Methods
@@ -57,12 +58,14 @@ namespace DifferenceUtility.Net
                 batchingCallback = new BatchingCollectionUpdateCallback(updateCallback);
             
             _offsets = new SortedDictionary<int, (int From, int Offset)>();
-            _postponedOperations = new Dictionary<(int X, int Y), int>();
+            
+            if (_moveCount > 0)
+                _postponedOperations = new List<PostponedOperation>(_moveCount);
             
             var currentX = -1;
             var currentY = -1;
             
-            for (var operationId = 0; operationId < _path.Count; operationId++)
+            for (var operationId = 0; operationId < _path.Length; operationId++)
             {
                 var operation = _path[operationId];
 
@@ -75,10 +78,8 @@ namespace DifferenceUtility.Net
                     
                     continue;
                 }
-                
-                int postponedOperationId;
-                int postponedX;
-                int postponedY;
+
+                PostponedOperation postponedOperation;
                 
                 // Vertical movement.
                 if ((operation & DiffOperation.Insert) != 0)
@@ -99,16 +100,19 @@ namespace DifferenceUtility.Net
 
                     // X coordinate encoded in payload.
                     var x = operation >> DiffOperation.Offset;
-
+                    
                     // Try to find an existing postponed operation with the provided coordinates.
-                    if (!_postponedOperations.TryGetValue((x, currentY), out postponedOperationId))
+                    if (!TryFindPostponedOperation(_postponedOperations, x, currentY, out postponedOperation))
                     {
-                        _postponedOperations[(x, currentY)] = operationId;
+                        _postponedOperations.Add(new PostponedOperation
+                        {
+                            OperationID = operationId,
+                            X = x,
+                            Y = currentY
+                        });
+                        
                         continue;
                     }
-                    
-                    postponedX = x;
-                    postponedY = currentY;
                 }
                 // Horizontal movement.
                 else if ((operation & DiffOperation.Remove) != 0)
@@ -131,14 +135,17 @@ namespace DifferenceUtility.Net
                     var y = operation >> DiffOperation.Offset;
                     
                     // Try to find an existing postponed operation with the provided coordinates.
-                    if (!_postponedOperations.TryGetValue((currentX, y), out postponedOperationId))
+                    if (!TryFindPostponedOperation(_postponedOperations, currentX, y, out postponedOperation))
                     {
-                        _postponedOperations[(currentX, y)] = operationId;
+                        _postponedOperations.Add(new PostponedOperation
+                        {
+                            OperationID = operationId,
+                            X = currentX,
+                            Y = y
+                        });
+                        
                         continue;
                     }
-
-                    postponedX = currentX;
-                    postponedY = y;
                 }
                 // If the operation isn't an insert or remove, but has the update flag, treat it as a diagonal.
                 else if ((operation & DiffOperation.Update) != 0)
@@ -154,26 +161,26 @@ namespace DifferenceUtility.Net
                 else
                     continue;
 
-                _postponedOperations.Remove((postponedX, postponedY));
+                _postponedOperations.Remove(postponedOperation);
 
                 // Apply offsets.
-                var offsetPostponedX = OffsetX(postponedX);
-                var offsetPostponedY = OffsetY(offsetPostponedX, postponedY);
+                var offsetPostponedX = OffsetX(postponedOperation.X);
+                var offsetPostponedY = OffsetY(offsetPostponedX, postponedOperation.Y);
                 
                 if ((operation & DiffOperation.Update) != 0)
-                    batchingCallback.OnChanged(offsetPostponedX, postponedY, 1);
+                    batchingCallback.OnChanged(offsetPostponedX, postponedOperation.Y, 1);
 
                 batchingCallback.OnMoved(offsetPostponedX, offsetPostponedY);
                 
                 // Create the offsets as a result of the move operation.
                 if (offsetPostponedX > offsetPostponedY)
                 {
-                    CreateXOffset(offsetPostponedY, 1, postponedOperationId);
+                    CreateXOffset(offsetPostponedY, 1, postponedOperation.OperationID);
                     CreateXOffset(offsetPostponedX + 1, -1, operationId);
                 }
                 else if (offsetPostponedX < offsetPostponedY)
                 {
-                    CreateXOffset(offsetPostponedX, -1, postponedOperationId);
+                    CreateXOffset(offsetPostponedX, -1, postponedOperation.OperationID);
                     CreateXOffset(offsetPostponedY, 1, operationId);
                 }
             }
@@ -183,10 +190,11 @@ namespace DifferenceUtility.Net
         #endregion
         
         #region Constructors
-        internal DiffResult(IDiffCallback<TOld, TNew> diffCallback, TOld[] oldArray, TNew[] newArray, IList<int> path)
+        internal DiffResult(IDiffCallback<TOld, TNew> diffCallback, TOld[] oldArray, TNew[] newArray, int[] path, int moveCount = 0)
         {
             _path = path;
             _diffCallback = diffCallback;
+            _moveCount = moveCount;
             _newArray = newArray;
             _oldArray = oldArray;
         }
@@ -210,7 +218,7 @@ namespace DifferenceUtility.Net
         
         private bool IsEmpty()
         {
-            return _path is null || _path.Count == 0 || _diffCallback is null || _oldArray is null || _newArray is null || _oldArray.Length == 0 && _newArray.Length == 0;
+            return _path is null || _path.Length == 0 || _diffCallback is null || _oldArray is null || _newArray is null || _oldArray.Length == 0 && _newArray.Length == 0;
         }
         
         private int OffsetX(int x)
@@ -226,28 +234,32 @@ namespace DifferenceUtility.Net
 
         private int OffsetY(int offsetX, int y)
         {
+            // Postponed operations may be null if there are no moves in the provided path.
+            if (_postponedOperations is null)
+                return y;
+            
             var yOffset = 0;
 
-            var postponedOperations = _postponedOperations.ToDictionary(p => p.Key, p => p.Value);
+            var postponedOperations = _postponedOperations.ToList();
 
             while (true)
             {
                 var newYOffset = 0;
                 
-                foreach (var (operationCoordinates, _) in _postponedOperations)
+                foreach (var postponedOperation in _postponedOperations)
                 {
-                    if (!postponedOperations.ContainsKey(operationCoordinates))
+                    if (!TryFindPostponedOperation(postponedOperations, postponedOperation.X, postponedOperation.Y, out _))
                         continue;
                     
-                    var offsetOperationX = OffsetX(operationCoordinates.X);
+                    var offsetOperationX = OffsetX(postponedOperation.X);
 
                     var tempYOffset = yOffset + newYOffset;
                     
                     // Insertions only, not moves.
-                    if (operationCoordinates.Y < y && offsetOperationX >= y + tempYOffset)
+                    if (postponedOperation.Y < y && offsetOperationX >= y + tempYOffset)
                         newYOffset--;
                     
-                    else if (operationCoordinates.Y > y && offsetOperationX <= y + tempYOffset)
+                    else if (postponedOperation.Y > y && offsetOperationX <= y + tempYOffset)
                         newYOffset++;
                     
                     else
@@ -279,7 +291,7 @@ namespace DifferenceUtility.Net
                     // else
                     //     continue;
 
-                    postponedOperations.Remove(operationCoordinates);
+                    postponedOperations.Remove(postponedOperation);
                 }
                 
                 if (newYOffset == 0)
@@ -321,6 +333,32 @@ namespace DifferenceUtility.Net
                 path[y + oldArray.Length] = (y << DiffOperation.Offset) | DiffOperation.Insert;
 
             return new DiffResult<TOld, TNew>(diffCallback, oldArray, newArray, path);
+        }
+        #endregion
+        
+        #region Private Static Methods
+        private static bool TryFindPostponedOperation(List<PostponedOperation> postponedOperations, int x, int y, out PostponedOperation postponedOperation)
+        {
+            using (var enumerator = postponedOperations.GetEnumerator())
+            {
+                while (enumerator.MoveNext())
+                {
+                    if (enumerator.Current.X != x || enumerator.Current.Y != y)
+                        continue;
+
+                    postponedOperation = enumerator.Current;
+                    return true;
+                }
+            }
+
+            postponedOperation = new PostponedOperation
+            {
+                OperationID = -1,
+                X = -1,
+                Y = -1
+            };
+            
+            return false;
         }
         #endregion
     }

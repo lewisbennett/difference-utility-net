@@ -3,27 +3,9 @@ using System.Collections.Specialized;
 using DifferenceUtility.Net;
 using Sample.NetConsole.Characters;
 
-// badfhlocz
-// azhbdfc
-
-// nwpalgfbds
-// mlfsgbadnhzx
-
-// wa4ytg3297
-// zopa93wgfh84
-
-// laogh4ns208
-// p1203na9sef8
-
-// p1203na9sef8w4ytg7
-// laogh4ns208zp93wf
-
-// wa4ynpltg3297fbds
-// zopadnhx93wgf84mlsb
-
 // Replace these strings to test difference calculation. The strings must only contain unique characters (i.e. no duplicates).
-const string source = "azhbdfc";
-const string destination = "badfhlocz";
+const string source = "wa4ynpltg3297fbds";
+const string destination = "zopa93wgfh84";
 
 // Create our items source with initial data.
 var data = new ObservableCollection<char>(source);
