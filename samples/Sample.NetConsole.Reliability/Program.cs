@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Text;
 using DifferenceUtility.Net;
 using Sample.NetConsole.Reliability;
 
@@ -34,25 +35,44 @@ var strings = new[]
     "4e1b3982507adc6f"
 };
 
-var finalStrings = new List<string>(strings);
-
 // Sanity check - make sure there are only unique entries with distinct values.
-finalStrings = finalStrings
+var finalStrings = new List<string>(strings
     .Distinct()
     .Select(f => f
         .Distinct()
-        .Aggregate(string.Empty, (current, @char) => current + @char))
-    .ToList(); 
+        .Aggregate(string.Empty, (current, @char) => current + @char)));
+
+const int stringLengthMin = 1;
+const int stringLengthMax = 50;
+
+var random = new Random();
 
 // Simple loop to generate some random sequences that we can use for additional testing.
-for (var i = 0; i < 0; i++)
+for (var i = 0; i < 500; i++)
 {
-    finalStrings.Add(Guid.NewGuid()
-        .ToString()
-        .Replace("-", string.Empty)
-        .Distinct()
-        .Aggregate(string.Empty, (current, @char) => current + @char));
+    var stringBuilder = new HashSet<char>();
+
+    var index = 0;
+    var stringLength = random.Next(stringLengthMin, stringLengthMax);
+    
+    while (index < stringLength)
+    {
+        var @char = (char)random.Next(0, 100);
+
+        if (!stringBuilder.TryGetValue(@char, out _))
+        {
+            stringBuilder.Add(@char);
+            index++;
+        }
+    }
+    
+    finalStrings.Add(string.Join(string.Empty, stringBuilder));
 }
+
+// Make sure we only have unique strings before beginning the test.
+finalStrings = finalStrings
+    .Distinct()
+    .ToList();
 
 var data = new ObservableCollection<char>();
 
