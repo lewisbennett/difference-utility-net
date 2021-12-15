@@ -24,22 +24,23 @@ var strings = new[]
     "zyxwvutsrqponmlkjihgfedcba",
     "1234567890",
     "0987654321",
-    "57d2ef09b4a8c3b"
+    "57d2ef09b4a8c3b",
+    "e198075db4a2fc36",
+    "9c0d568bea47231f",
+    "8c0a594326b7d1",
+    "e873fcd624a5019b",
+    "f9a734d8e2c1b56",
+    "d48c0ab9312657f",
+    "4e1b3982507adc6f"
 };
 
 // Failures:
-// from: e198075db4a2fc36 to: 57d2ef09b4a8c3b result: 57d2ef90b4a8c3b
-// from: 9c0d568bea47231f to: 57d2ef09b4a8c3b result: 57d2ef90b4a8c3b
-// from: 8c0a594326b7d1 to: abdflns208zp93wchog result: abdflns280zp93wchog
 // from: e873fcd624a5019b to: 57d2ef09b4a8c3b result: 57d2efa9b408c3b
-// from: f9a734d8e2c1b56 to: 57d2ef09b4a8c3b result: 57d2ef09ba48c3b
-// from: d48c0ab9312657f to: abdflns208zp93wchog result: abdflns280zp93wchog
-// from: 4e1b3982507adc6f to: 57d2ef09b4a8c3b result: 57d2ef0b94a8c3b
 
 var finalStrings = new List<string>(strings);
 
 // Simple loop to generate some random sequences that we can use for additional testing.
-for (var i = 0; i < 10; i++)
+for (var i = 0; i < 0; i++)
 {
     finalStrings.Add(Guid.NewGuid()
         .ToString()
