@@ -34,10 +34,15 @@ var strings = new[]
     "4e1b3982507adc6f"
 };
 
-// Failures:
-// from: e873fcd624a5019b to: 57d2ef09b4a8c3b result: 57d2efa9b408c3b
-
 var finalStrings = new List<string>(strings);
+
+// Sanity check - make sure there are only unique entries with distinct values.
+finalStrings = finalStrings
+    .Distinct()
+    .Select(f => f
+        .Distinct()
+        .Aggregate(string.Empty, (current, @char) => current + @char))
+    .ToList(); 
 
 // Simple loop to generate some random sequences that we can use for additional testing.
 for (var i = 0; i < 0; i++)
