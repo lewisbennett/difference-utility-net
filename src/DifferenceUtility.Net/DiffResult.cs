@@ -223,13 +223,45 @@ namespace DifferenceUtility.Net
         
         private int OffsetX(int x)
         {
-            foreach (var (_, (from, offset)) in _offsets)
-            {
-                if (x >= from)
-                    x += offset;
-            }
+            var offsets = _offsets.ToDictionary(o => o.Key, o => o.Value);
 
-            return x;
+            var xOffset = 0;
+            
+            while (true)
+            {
+                var newXOffset = 0;
+
+                foreach (var offset in _offsets)
+                {
+                    if (!offsets.ContainsKey(offset.Key))
+                        continue;
+
+                    var tempXOffset = newXOffset + xOffset;
+                    
+                    if (x + tempXOffset >= offset.Value.From)
+                        newXOffset += offset.Value.Offset;
+                    
+                    else
+                        continue;
+
+                    offsets.Remove(offset.Key);
+                    
+                    break;
+                }
+                
+                if (newXOffset == 0)
+                    break;
+
+                xOffset += newXOffset;
+            }
+            
+            // foreach (var (_, (from, offset)) in _offsets)
+            // {
+            //     if (x >= from)
+            //         x += offset;
+            // }
+
+            return x + xOffset;
         }
 
         private int OffsetY(int offsetX, int y)
