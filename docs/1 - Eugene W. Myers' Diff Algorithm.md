@@ -37,7 +37,7 @@ Items that exist in both the source and destination collections are represented 
 
 ### Finding the Shortest Possible Path
 
-The shortest possible path is the one that uses as many diagonals as possible however, not all diagonals are within range of each other since we can only move forwards going from start to finish. Depending on the collections, multiple shorter paths may also be available. To calculate the shortest possible path, we calculate the longest common subsequence.
+The shortest possible path is the one that uses as many diagonals as possible however, not all diagonals are within range of each other since we can only move forwards going from start to finish. Depending on the collections, multiple shorter paths may also be available. To calculate the shortest possible path, we calculate the [longest common subsequence](2%20-%20Longest%20Common%20Subsequence.md).
 
-<img src="images/badfhlocz-grid-path-1.jpg" width="33%" height="33%"> <img src="images/badfhlocz-grid-path-2.jpg" width="33%" height="33%"> <img src="images/badfhlocz-grid-path-fastest.jpg" width="33%" height="33%">
+<img src="images/badfhlocz-grid-path-1.jpg" width="33%" height="33%"> <img src="images/badfhlocz-grid-path-2.jpg" width="33%" height="33%"> <img src="images/badfhlocz-grid-path-fastest-1.jpg" width="33%" height="33%">
 
