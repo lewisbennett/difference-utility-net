@@ -16,6 +16,7 @@
 		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
 		<RepositoryType>git</RepositoryType>
 		<RepositoryUrl>https://github.com/lewisbennett/difference-utility-net</RepositoryUrl>
+		<PackageIcon>icon.png</PackageIcon>
 		<NoWarn>1701;1702;1591;1573</NoWarn>
 	</PropertyGroup>
 
@@ -37,6 +38,10 @@
 	<ItemGroup>
 		<Compile Include="CollectionUpdateCallbacks\BatchingCollectionUpdateCallback.cs" />
 		<Compile Include="CollectionUpdateCallbacks\ObservableCollectionUpdateCallback.cs" />
+		<None Include="..\..\assets\icon.png">
+			<Pack>True</Pack>
+			<PackagePath></PackagePath>
+		</None>
 		<None Include="..\..\LICENSE">
 			<Pack>True</Pack>
 			<PackagePath></PackagePath>
