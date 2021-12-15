@@ -3,7 +3,7 @@
   <img src="assets/logo.png" width="50%" height="50%">
   
   [![License: Apache](https://img.shields.io/badge/License-Apache-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-  [![GitHub forks](https://img.shields.io/nuget/dt/DialogMessaging.svg)](https://www.nuget.org/packages/DifferenceUtility.Net/)
+  [![GitHub forks](https://img.shields.io/nuget/dt/DifferenceUtility.Net.svg)](https://www.nuget.org/packages/DifferenceUtility.Net/)
   [![lewisbennett](https://circleci.com/gh/lewisbennett/difference-utility-net.svg?style=svg)](https://circleci.com/gh/lewisbennett/difference-utility-net)
   
 </div>
