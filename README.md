@@ -1,15 +1,15 @@
-# Difference Utility .NET
+<div align="center">
 
-A simple library, similar to Android's DiffUtil, for .NET collections.
+  <img src="assets/logo.png" width="50%" height="50%">
+  
+  [![License: Apache](https://img.shields.io/badge/License-Apache-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+  [![GitHub forks](https://img.shields.io/nuget/dt/DialogMessaging.svg)](https://www.nuget.org/packages/DifferenceUtility.Net/)
+  [![lewisbennett](https://circleci.com/gh/lewisbennett/difference-utility-net.svg?style=svg)](https://circleci.com/gh/lewisbennett/difference-utility-net)
+  
+</div>
 
-## The concept
+# DifferenceUtility.Net
 
-Difference utility provides a means for gracefully applying collection changes when using `ObservableCollection`, by using `Add`, `Insert`, `Move`, and `Remove` methods. This allows you to not have to clear the collection first, then bulk add the existing data concatenated with any new data, potentially resulting in lower performance and/or worse user experience. Instead, only the required steps to get from collection A to collection B are taken.
+DifferenceUtility.Net is a library for .NET that calculates the shortest possible path to convert one collection to another, before dispatching the operations to a primary data source for the quickest and smoothest transition.
 
-## Samples
-
-[.NET console project](https://github.com/lewisbennett/difference-utility-net/tree/develop/samples/Sample.Console)
-
-[MvvmCross core project](https://github.com/lewisbennett/difference-utility-net/tree/develop/samples/Sample.MvvmCross.Core)
-
-[MvvmCross Android project](https://github.com/lewisbennett/difference-utility-net/tree/develop/samples/Sample.MvvmCross.Droid)
+The library uses Eugene W. Myers' diff algorithm to calculate the difference between two collections ([see docs](docs)). It also has an optional extra layer for calculating moves for items that are persistant between the two collections, but might be in different positions.
