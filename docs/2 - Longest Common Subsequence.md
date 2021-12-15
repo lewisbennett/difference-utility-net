@@ -33,3 +33,17 @@ The two rules above are applied to the rest of the coordinates within the matrix
 <img src="images/badfhlocz-grid-lcs-partial-4.jpg" width="33%" height="33%"> <img src="images/badfhlocz-grid-lcs-partial-5.jpg" width="33%" height="33%"> <img src="images/badfhlocz-grid-lcs-complete.jpg" width="33%" height="33%">
 
 -----
+
+## Building the Path
+
+With the length of the longest common subsequence, we can begin to work backwards from the end of the matrix to the beginning. When traversing backwards, we can only move left and upwards until we reach the boundary of the current score group (illustrated as separate colors below). We can move into the next score group when we reach the bottom of a diagonal, then the process is repeated until we reach the beginning.
+
+<img src="images/badfhlocz-grid-lcs-complete.jpg" width="50%" height="50%">
+
+The path taken between the end of the matrix, the diagonals found via the longest common subsequence, and the beginning of the matrix, will be the shortest path to take to convert the source collection to the destination collection. In our example, there are two routes with equal length; either will suffice.
+
+<img src="images/badfhlocz-grid-lcs-complete-path-1.jpg" width="49%" height="49%"> <img src="images/badfhlocz-grid-lcs-complete-path-2.jpg" width="49%" height="49%">
+
+When we interpret the steps taken to get back to the beginning as horizontal and vertical movements, we get a completed diff matrix that follows the shortest possible path between the source collection and the destination collection.
+
+<img src="images/badfhlocz-grid-path-fastest-1.jpg" width="49%" height="49%"> <img src="images/badfhlocz-grid-path-fastest-2.jpg" width="49%" height="49%">
