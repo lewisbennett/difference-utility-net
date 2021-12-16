@@ -10,6 +10,6 @@
 
 # DifferenceUtility.Net
 
-DifferenceUtility.Net is a library for .NET that calculates the shortest possible path to convert one collection to another, before dispatching the operations to a primary data source for the quickest and smoothest transition.
+DifferenceUtility.Net is a library for .NET handles the calculation and dispatch of the shortest possible path to convert one collection to another, resulting in a quick and smooth transition.
 
 The library uses Eugene W. Myers' diff algorithm to calculate the difference between two collections ([see docs](docs)). It also has an optional extra layer for calculating moves for items that are persistant between the two collections, but might be in different positions.
