@@ -26,6 +26,22 @@ This is the result after applying all `X` offsets for the entire sequence:
 
 -----
 
+### Y Offset
+
+Offsetting `Y` values is only required if move detection is enabled, because `Y` values are offset using postponed operations which aren't used when not detecting moves.
+
+When processing a regular insertion or a move operation, offsetting the `Y` coordinate is required. This is because, unlike the `X` offset which offsets for modifications that have already happened, the `Y` coordinate is offset to accomodate modifications that will happen later in the sequence.
+
+To calculate the `Y` offset we query the postponed operations. If the postponed operation's unmodified `Y` coordinate is less than the current operation's `Y` coordinate, this tells us that there will eventually be an item that comes before the current item however, this doesn't always mean that it will have an effect on the current operation's final `Y` position. To check whether the postponed operation will affect the current operation, we apply an offset to its `X` coordinate (to find where the item is located in the current data source) and check whether this adjusted value is greater than or equal to the current operation's `Y` coordinate, with the currently calculated `Y` offset applied. If a postponed operation meets this criteria, we subtract `1` from the `Y` coordinate as we now know that a postponed operation will be moving to before the current item in the future, thus incrementing its position. Likewise, if the postponed operation's unmodified `Y` coordinate is greater than the current operation's unmodified `Y` coordinate, and its offset `X` coordinate is less than or equal to the current operation's offset `Y` coordinate, we add `1` to the `Y` coordinate.
+
+<img src="images/badfhlocz-operations-moves-1.jpg" width="50%" height="50%">
+
+In the illustration above, we're processing the move of `H`. We can see that `Z` will cross over it which will cause the position of `H` to increment when it does. `Z` on the other hand, won't require any offsets to its `Y` coordinate as there won't be any postponed operations left. As a result of this crossing, the `Y` coordinate used by `H` is decremented, inserting at position `1` (before `B`) instead.
+
+`Y` offsets are calculated in the same manner as `X` offsets. They are queried in the order they were created, and re-queried from the beginning whenever an offset is made, until no more offsets are possible.
+
+-----
+
 ## Operation Handling Breakdown
 
 ### Updates
