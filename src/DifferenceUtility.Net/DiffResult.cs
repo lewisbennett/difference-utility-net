@@ -34,7 +34,7 @@ namespace DifferenceUtility.Net
         {
             if (observableCollection is null)
                 throw new ArgumentNullException(nameof(observableCollection));
-            
+
             if (IsEmpty())
                 return;
 
