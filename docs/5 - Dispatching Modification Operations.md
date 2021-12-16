@@ -4,11 +4,27 @@ The modification operations contained within the path are dispatched to a .NET c
 
 ## Offsets
 
-The relationship between operations and the X offset and Y offset is circular. This means that operations require offsetting before they're processed, and they may create an offset after being processed. Here, we'll explain how each offset is applied and created, followed by how the operations are handled below.
+The relationship between operations and the X offset and Y offset is circular. This means that operations require offsetting before they're processed, and they may create an offset after being processed. Here, we'll explain how each offset is applied and created, followed by how the operations are handled afterwards.
 
 ### X Offset
 
+An `X` offset is required whenever the data source is modified, or the operation's intent is to modify using the `X` coordinate. Below is an example of modifying the data source. The top row shows the source collection with its original items at original indexes however, as soon as we process the first operation in the path by inserting at `Y0`, the indexes of the orignal data increase. Handling this operation will create an `X` offset at index `0` with a value of `1`, likewise for the next two operations with their respective `Y` positions.
 
+<img src="images/badfhlocz-operations-1.jpg" width="40%" height="40%"> &ensp; &ensp; &ensp; <img src="images/badfhlocz-operations-2.jpg" width="49%" height="49%">
+
+The fourth operation in the path may require us to update the contents of the item at the current coordinates: `X0`/`Y3` (referring to the letter `B`), but we can see that `X0` in the source collection isn't the same as `X0` in the data source being modified. This is where we apply the `X` offset. In this context, `Y3` refers to the destination collection and therefore does not need offsetting. We take the provided `X` value and check whether there are any offsets with a position less than or equal to it. If one is found, we apply the offset and then search the offsets again from the beginning, not including any offsets that were applied previously, and using the adjusted `X` value instead of the original. This is repeated until no further offsets can be applied. Based on these rules, `X0` becomes `X3`,  which lines up correctly with the target item.
+
+<img src="images/badfhlocz-operations-3.jpg" width="50%" height="50%">
+
+The fifth operation tells us to remove at `X1` (referring to the letter `A`). First, we apply the `X` offset, which gives us `X4`, then we remove the item using the adjusted `X` value, and finally we create a new `X` offset at index `4` with a value of `-1` (because an item was removed rather than inserted).
+
+<img src="images/badfhlocz-operations-4.jpg" width="50%" height="50%">
+
+This is the result after applying all `X` offsets for the entire sequence:
+
+<img src="images/badfhlocz-operations-5.jpg" width="50%" height="50%">
+
+-----
 
 ## Operation Handling Breakdown
 
