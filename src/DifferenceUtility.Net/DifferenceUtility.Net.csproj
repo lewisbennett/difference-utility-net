@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<GitInfoReportImportance Condition="'$(Configuration)' == 'Release'">high</GitInfoReportImportance>
 		<TargetFramework>netstandard2.1</TargetFramework>
-		<LangVersion>9</LangVersion>
+		<LangVersion>10</LangVersion>
 	</PropertyGroup>
 
 	<PropertyGroup>

@@ -7,392 +7,334 @@ using DifferenceUtility.Net.Base;
 using DifferenceUtility.Net.CollectionUpdateCallbacks;
 using DifferenceUtility.Net.Helper;
 
-namespace DifferenceUtility.Net
+namespace DifferenceUtility.Net;
+
+/// <summary>
+/// <para>This class holds the information about the result of a <see cref="DiffUtil.CalculateDiff{T,T}" /> call.</para>
+/// <para>You can consume updates in a DiffResult via <see cref="DispatchUpdatesTo(ObservableCollection{TSource})" />.</para>
+/// </summary>
+public class DiffResult<TSource, TDestination>
 {
+    #region Fields
+    private readonly TDestination[] _destinationArray;
+    private readonly IDiffCallback<TSource, TDestination> _diffCallback;
+    private readonly int _moveCount;
+    private SortedList<int, (int From, int Offset)> _offsets;
+    private readonly int[] _path;
+    private List<PostponedOperation> _postponedOperations;
+    private readonly TSource[] _sourceArray;
+    #endregion
+    
+    #region Public Methods
     /// <summary>
-    /// <para>This class holds the information about the result of a <see cref="DiffUtil.CalculateDiff{T,T}" /> call.</para>
-    /// <para>You can consume updates in a DiffResult via <see cref="DispatchUpdatesTo(ObservableCollection{TOld})" />.</para>
+    /// Dispatches the update events to the given collection.
     /// </summary>
-    public class DiffResult<TOld, TNew>
+    /// <param name="observableCollection">A collection which is displaying the old collection, and will start displaying the new collection.</param>
+    public void DispatchUpdatesTo([NotNull] ObservableCollection<TSource> observableCollection)
     {
-        #region Fields
-        private readonly int[] _path;
-        private readonly IDiffCallback<TOld, TNew> _diffCallback;
-        private readonly int _moveCount;
-        private readonly TNew[] _newArray;
-        private SortedDictionary<int, (int From, int Offset)> _offsets;
-        private readonly TOld[] _oldArray;
-        private List<PostponedOperation> _postponedOperations;
-        #endregion
+        if (observableCollection is null)
+            throw new ArgumentNullException(nameof(observableCollection));
+
+        if (IsEmpty())
+            return;
+
+        DispatchUpdatesTo(new ObservableCollectionUpdateCallback<TSource, TDestination>(_diffCallback, observableCollection, _sourceArray, _destinationArray));
+    }
         
-        #region Public Methods
-        /// <summary>
-        /// Dispatches the update events to the given collection.
-        /// </summary>
-        /// <param name="observableCollection">A collection which is displaying the old collection, and will start displaying the new collection.</param>
-        public void DispatchUpdatesTo([NotNull] ObservableCollection<TOld> observableCollection)
-        {
-            if (observableCollection is null)
-                throw new ArgumentNullException(nameof(observableCollection));
+    /// <summary>
+    /// <para>Dispatches update operations to the given callback.</para>
+    /// <para>These updates are atomic such that the first update call affects every update call that comes after it.</para>
+    /// </summary>
+    /// <param name="updateCallback">The callback to receive the update operations.</param>
+    public void DispatchUpdatesTo([NotNull] ICollectionUpdateCallback updateCallback)
+    {
+        if (updateCallback is null)
+            throw new ArgumentNullException(nameof(updateCallback));
+            
+        if (IsEmpty())
+            return;
 
-            if (IsEmpty())
-                return;
-
-            DispatchUpdatesTo(new ObservableCollectionUpdateCallback<TOld, TNew>(_diffCallback, observableCollection, _oldArray, _newArray));
-        }
+        if (updateCallback is not BatchingCollectionUpdateCallback batchingCallback)
+            batchingCallback = new BatchingCollectionUpdateCallback(updateCallback);
         
-        /// <summary>
-        /// <para>Dispatches update operations to the given callback.</para>
-        /// <para>These updates are atomic such that the first update call affects every update call that comes after it.</para>
-        /// </summary>
-        /// <param name="updateCallback">The callback to receive the update operations.</param>
-        public void DispatchUpdatesTo([NotNull] ICollectionUpdateCallback updateCallback)
+        // Provide capacity to avoid re-allocations. There will never be more offsets
+        _offsets = new SortedList<int, (int From, int Offset)>(_path.Length);
+        
+        // Postponed operations only required if there are moves in the path.
+        if (_moveCount > 0)
+            _postponedOperations = new List<PostponedOperation>(_moveCount);
+            
+        var currentX = -1;
+        var currentY = -1;
+            
+        for (var operationId = 0; operationId < _path.Length; operationId++)
         {
-            if (updateCallback is null)
-                throw new ArgumentNullException(nameof(updateCallback));
-            
-            if (IsEmpty())
-                return;
+            var operation = _path[operationId];
 
-            if (updateCallback is not BatchingCollectionUpdateCallback batchingCallback)
-                batchingCallback = new BatchingCollectionUpdateCallback(updateCallback);
-            
-            _offsets = new SortedDictionary<int, (int From, int Offset)>();
-            
-            if (_moveCount > 0)
-                _postponedOperations = new List<PostponedOperation>(_moveCount);
-            
-            var currentX = -1;
-            var currentY = -1;
-            
-            for (var operationId = 0; operationId < _path.Length; operationId++)
-            {
-                var operation = _path[operationId];
-
-                // The only way an operation can be zero is if it's a diagonal without the update flag.
-                if (operation == 0)
-                {
-                    // Diagonal operations don't contain any coordinates, so just increment normally.
-                    currentX++;
-                    currentY++;
-                    
-                    continue;
-                }
-
-                PostponedOperation postponedOperation;
+            PostponedOperation postponedOperation;
                 
-                // Vertical movement.
-                if ((operation & DiffOperation.Insert) != 0)
+            // Vertical movement.
+            if ((operation & DiffOperation.Insert) != 0)
+            {
+                currentY++;
+
+                // Regular insertion if no move flag.
+                if ((operation & DiffOperation.Move) == 0)
                 {
-                    currentY++;
-
-                    // Regular insertion if no move flag.
-                    if ((operation & DiffOperation.Move) == 0)
-                    {
-                        var offsetY = OffsetY(currentY, currentY);
+                    var offsetY = OffsetY(currentY);
                         
-                        batchingCallback.OnInserted(offsetY, currentY);
+                    batchingCallback.OnInserted(offsetY, currentY);
 
-                        CreateXOffset(offsetY, 1, operationId);
+                    CreateXOffset(offsetY, true, operationId);
 
-                        continue;
-                    }
-
-                    // X coordinate encoded in payload.
-                    var x = operation >> DiffOperation.Offset;
-                    
-                    // Try to find an existing postponed operation with the provided coordinates.
-                    if (!TryFindPostponedOperation(_postponedOperations, x, currentY, out postponedOperation))
-                    {
-                        _postponedOperations.Add(new PostponedOperation
-                        {
-                            OperationID = operationId,
-                            X = x,
-                            Y = currentY
-                        });
-                        
-                        continue;
-                    }
-                }
-                // Horizontal movement.
-                else if ((operation & DiffOperation.Remove) != 0)
-                {
-                    currentX++;
-
-                    // Regular removal if no move flag.
-                    if ((operation & DiffOperation.Move) == 0)
-                    {
-                        var offsetX = OffsetX(currentX);
-
-                        batchingCallback.OnRemoved(offsetX, 1);
-
-                        CreateXOffset(offsetX, -1, operationId);
-
-                        continue;
-                    }
-
-                    // Y coordinate encoded in payload.
-                    var y = operation >> DiffOperation.Offset;
-                    
-                    // Try to find an existing postponed operation with the provided coordinates.
-                    if (!TryFindPostponedOperation(_postponedOperations, currentX, y, out postponedOperation))
-                    {
-                        _postponedOperations.Add(new PostponedOperation
-                        {
-                            OperationID = operationId,
-                            X = currentX,
-                            Y = y
-                        });
-                        
-                        continue;
-                    }
-                }
-                // If the operation isn't an insert or remove, but has the update flag, treat it as a diagonal.
-                else if ((operation & DiffOperation.Update) != 0)
-                {
-                    // Diagonal operations don't contain any coordinates, so just increment normally.
-                    currentX++;
-                    currentY++;
-                    
-                    batchingCallback.OnChanged(OffsetX(currentX), currentY, 1);
-                    
                     continue;
                 }
-                else
+
+                // X coordinate encoded in payload.
+                var x = operation >> DiffOperation.Offset;
+                    
+                // Postpone the current operation if an operation with matching coordinates hasn't already been postponed.
+                if (!TryFindPostponedOperation(x, currentY, out postponedOperation))
+                {
+                    _postponedOperations.Add(new PostponedOperation
+                    {
+                        OperationID = operationId,
+                        X = x,
+                        Y = currentY
+                    });
+                        
                     continue;
+                }
+            }
+            // Horizontal movement.
+            else if ((operation & DiffOperation.Remove) != 0)
+            {
+                currentX++;
 
-                _postponedOperations.Remove(postponedOperation);
+                // Regular removal if no move flag.
+                if ((operation & DiffOperation.Move) == 0)
+                {
+                    var offsetX = OffsetX(currentX);
 
-                // Apply offsets.
-                var offsetPostponedX = OffsetX(postponedOperation.X);
-                var offsetPostponedY = OffsetY(offsetPostponedX, postponedOperation.Y);
+                    batchingCallback.OnRemoved(offsetX, 1);
+
+                    CreateXOffset(offsetX, false, operationId);
+
+                    continue;
+                }
+
+                // Y coordinate encoded in payload.
+                var y = operation >> DiffOperation.Offset;
+                    
+                // Try to find an existing postponed operation with the provided coordinates.
+                if (!TryFindPostponedOperation(currentX, y, out postponedOperation))
+                {
+                    _postponedOperations.Add(new PostponedOperation
+                    {
+                        OperationID = operationId,
+                        X = currentX,
+                        Y = y
+                    });
+                        
+                    continue;
+                }
+            }
+            // If the operation is neither remove nor insert, assume diagonal.
+            else
+            {
+                // Diagonal operations don't contain any coordinates, so just increment normally.
+                currentX++;
+                currentY++;
                 
                 if ((operation & DiffOperation.Update) != 0)
-                    batchingCallback.OnChanged(offsetPostponedX, postponedOperation.Y, 1);
-
-                batchingCallback.OnMoved(offsetPostponedX, offsetPostponedY);
+                    batchingCallback.OnChanged(OffsetX(currentX), currentY, 1);
                 
-                // Create the offsets as a result of the move operation.
-                if (offsetPostponedX > offsetPostponedY)
-                {
-                    CreateXOffset(offsetPostponedY, 1, postponedOperation.OperationID);
-                    CreateXOffset(offsetPostponedX + 1, -1, operationId);
-                }
-                else if (offsetPostponedX < offsetPostponedY)
-                {
-                    CreateXOffset(offsetPostponedX, -1, postponedOperation.OperationID);
-                    CreateXOffset(offsetPostponedY, 1, operationId);
-                }
+                continue;
             }
 
-            batchingCallback.DispatchLastEvent();
-        }
-        #endregion
-        
-        #region Constructors
-        internal DiffResult(IDiffCallback<TOld, TNew> diffCallback, TOld[] oldArray, TNew[] newArray, int[] path, int moveCount = 0)
-        {
-            _path = path;
-            _diffCallback = diffCallback;
-            _moveCount = moveCount;
-            _newArray = newArray;
-            _oldArray = oldArray;
-        }
-        #endregion
-        
-        #region Private Methods
-        private void CreateXOffset(int from, int offset, int operationId)
-        {
-            for (var i = 0; i < _offsets.Count; i++)
-            {
-                var (queryOperationId, (queryFrom, queryOffset)) = _offsets.ElementAt(i);
+            _postponedOperations.Remove(postponedOperation);
+
+            // Apply offsets.
+            var offsetPostponedX = OffsetX(postponedOperation.X);
+            var offsetPostponedY = OffsetY(postponedOperation.Y);
                 
-                // The provided offset should be applied to offsets that are positioned after the provided 'from' position.
-                if (from < queryFrom)
-                    _offsets[queryOperationId] = (queryFrom + offset, queryOffset);
-            }
-            
-            // Finally, create the offset.
-            _offsets[operationId] = (from, offset);
-        }
-        
-        private bool IsEmpty()
-        {
-            return _path is null || _path.Length == 0 || _diffCallback is null || _oldArray is null || _newArray is null || _oldArray.Length == 0 && _newArray.Length == 0;
-        }
-        
-        private int OffsetX(int x)
-        {
-            var offsets = _offsets.ToDictionary(o => o.Key, o => o.Value);
+            if ((operation & DiffOperation.Update) != 0)
+                batchingCallback.OnChanged(offsetPostponedX, postponedOperation.Y, 1);
 
-            var xOffset = 0;
-            
-            while (true)
-            {
-                var newXOffset = 0;
-
-                foreach (var offset in _offsets)
-                {
-                    if (!offsets.ContainsKey(offset.Key))
-                        continue;
-
-                    var tempXOffset = newXOffset + xOffset;
-                    
-                    if (x + tempXOffset >= offset.Value.From)
-                        newXOffset += offset.Value.Offset;
-                    
-                    else
-                        continue;
-
-                    offsets.Remove(offset.Key);
-                    
-                    break;
-                }
+            batchingCallback.OnMoved(offsetPostponedX, offsetPostponedY);
                 
-                if (newXOffset == 0)
-                    break;
-
-                xOffset += newXOffset;
-            }
-            
-            // foreach (var (_, (from, offset)) in _offsets)
-            // {
-            //     if (x >= from)
-            //         x += offset;
-            // }
-
-            return x + xOffset;
-        }
-
-        private int OffsetY(int offsetX, int y)
-        {
-            // Postponed operations may be null if there are no moves in the provided path.
-            if (_postponedOperations is null)
-                return y;
-            
-            var yOffset = 0;
-
-            var postponedOperations = _postponedOperations.ToList();
-
-            while (true)
+            // Create the offsets as a result of the move operation.
+            if (offsetPostponedX > offsetPostponedY)
             {
-                var newYOffset = 0;
-                
-                foreach (var postponedOperation in _postponedOperations)
-                {
-                    if (!TryFindPostponedOperation(postponedOperations, postponedOperation.X, postponedOperation.Y, out _))
-                        continue;
-                    
-                    var offsetOperationX = OffsetX(postponedOperation.X);
-
-                    var tempYOffset = yOffset + newYOffset;
-                    
-                    // Insertions only, not moves.
-                    if (postponedOperation.Y < y && offsetOperationX >= y + tempYOffset)
-                        newYOffset--;
-                    
-                    else if (postponedOperation.Y > y && offsetOperationX <= y + tempYOffset)
-                        newYOffset++;
-                    
-                    else
-                        continue;
-                    
-                    
-                    // The postponed operation's X value would increase if we were to insert at the current adjusted Y,
-                    // and the postponed operation's X value is greater than or equal to the adjusted Y.
-                    // if (offsetOperationX < offsetX && offsetOperationX >= y + tempYOffset)
-                    //     offsetOperationX++;
-                    //
-                    // else if (offsetOperationX > offsetX && offsetOperationX <= y + tempYOffset)
-                    //     offsetOperationX--;
-                    //
-                    // // Comparing the operation's Y value to the provided, unmodified Y value tells us where the items are meant
-                    // // to be in relation to each other at the end of the sequence. We use this information to determine whether
-                    // // the postponed operation will cause the item at the current Y position to move later on.
-                    //
-                    // // If the item represented by the postponed operation is positioned before the item represented by Y in the destination collection,
-                    // // check if the postponed item is currently positioned after the current item to determine whether the operation will provide a positive
-                    // // offset when it is eventually processed. If it will, decrement the Y offset to counter this.
-                    // if (operationCoordinates.Y < y && offsetOperationX > y + tempYOffset)
-                    //     newYOffset--;
-                    //
-                    // else if (operationCoordinates.Y > y && offsetOperationX < y + tempYOffset)
-                    //     newYOffset++;
-                    //
-                    // else
-                    //     continue;
-
-                    postponedOperations.Remove(postponedOperation);
-                    
-                    break;
-                }
-                
-                if (newYOffset == 0)
-                    break;
-
-                yOffset += newYOffset;
+                CreateXOffset(offsetPostponedY, true, postponedOperation.OperationID);
+                CreateXOffset(offsetPostponedX + 1, false, operationId);
             }
-            
-            return y + yOffset;
-        }
-        #endregion
-        
-        #region Static Fields
-        private static DiffResult<TOld, TNew> _emptyDiffResult;
-        #endregion
-        
-        #region Internal Static Methods
-        /// <summary>
-        /// Gets an empty <see cref="DiffResult{TOld,TNew}" /> that takes zero action when applied.
-        /// </summary>
-        internal static DiffResult<TOld, TNew> Empty()
-        {
-            return _emptyDiffResult ??= new DiffResult<TOld, TNew>(null, null, null, null);
-        }
-
-        /// <summary>
-        /// Gets a configured <see cref="DiffResult{TOld,TNew}" /> that ignores diagonals.
-        /// </summary>
-        internal static DiffResult<TOld, TNew> NoDiagonals(IDiffCallback<TOld, TNew> diffCallback, TOld[] oldArray, TNew[] newArray)
-        {
-            var path = new int[oldArray.Length + newArray.Length];
-            
-            // Add X/remove operations first.
-            for (var x = 0; x < oldArray.Length; x++)
-                path[x] = (x << DiffOperation.Offset) | DiffOperation.Remove;
-            
-            // Then add Y/insert operations.
-            for (var y = 0; y < newArray.Length; y++)
-                path[y + oldArray.Length] = (y << DiffOperation.Offset) | DiffOperation.Insert;
-
-            return new DiffResult<TOld, TNew>(diffCallback, oldArray, newArray, path);
-        }
-        #endregion
-        
-        #region Private Static Methods
-        private static bool TryFindPostponedOperation(List<PostponedOperation> postponedOperations, int x, int y, out PostponedOperation postponedOperation)
-        {
-            using (var enumerator = postponedOperations.GetEnumerator())
+            else if (offsetPostponedX < offsetPostponedY)
             {
-                while (enumerator.MoveNext())
-                {
-                    if (enumerator.Current.X != x || enumerator.Current.Y != y)
-                        continue;
-
-                    postponedOperation = enumerator.Current;
-                    return true;
-                }
+                CreateXOffset(offsetPostponedX, false, postponedOperation.OperationID);
+                CreateXOffset(offsetPostponedY, true, operationId);
             }
-
-            postponedOperation = new PostponedOperation
-            {
-                OperationID = -1,
-                X = -1,
-                Y = -1
-            };
-            
-            return false;
         }
-        #endregion
+
+        batchingCallback.DispatchLastEvent();
     }
+    #endregion
+    
+    #region Constructors
+    internal DiffResult(IDiffCallback<TSource, TDestination> diffCallback, TSource[] sourceArray, TDestination[] destinationArray, int[] path, int moveCount = 0)
+    {
+        _destinationArray = destinationArray;
+        _diffCallback = diffCallback;
+        _moveCount = moveCount;
+        _path = path;
+        _sourceArray = sourceArray;
+    }
+    #endregion
+        
+    #region Private Methods
+    private void CreateXOffset(int from, bool increment, int operationId)
+    {
+        var offset = increment ? 1 : -1;
+        
+        foreach (var (queryOperationId, (queryFrom, queryOffset)) in _offsets.ToList())
+        {
+            // The provided offset should be applied to offsets that are positioned after the provided 'from' position.
+            if (queryFrom > from)
+                _offsets[queryOperationId] = (queryFrom + offset, queryOffset);
+        }
+
+        // Finally, create the offset.
+        if (_offsets.TryGetValue(operationId + 1, out var incOffset) && incOffset.From == from)
+            _offsets[operationId + 1] = (Math.Max(incOffset.From, from), incOffset.Offset + offset);
+        
+        else if (_offsets.TryGetValue(operationId - 1, out var decOffset) && decOffset.From == from)
+            _offsets[operationId - 1] = (Math.Max(decOffset.From, from), decOffset.Offset + offset);
+        
+        else
+            _offsets[operationId] = (from, offset);
+    }
+        
+    private bool IsEmpty()
+    {
+        return _path is null || _path.Length == 0 || _diffCallback is null || _sourceArray is null || _destinationArray is null || _sourceArray.Length == 0 && _destinationArray.Length == 0;
+    }
+        
+    private int OffsetX(int x)
+    {
+        if (_offsets.Count == 0)
+            return x;
+        
+        var processed = new HashSet<int>();
+        
+        var offsets = _offsets.Values;
+
+        for (var i = 0; i < offsets.Count; i++)
+        {
+            if (processed.Contains(i))
+                continue;
+
+            var (from, offset) = offsets[i];
+
+            if (x < from)
+                continue;
+
+            x += offset;
+
+            processed.Add(i);
+
+            // The loop will increment 'i' before the next loop runs, so we need to set it to -1 in order to start again from 0.
+            i = -1;
+        }
+        
+        return x;
+    }
+
+    private int OffsetY(int y)
+    {
+        // Postponed operations will be null if there are no moves in the provided path.
+        // Y will also not change if there are no postponed updates.
+        if (_postponedOperations is null || _postponedOperations.Count == 0)
+            return y;
+
+        var processed = new HashSet<int>();
+        
+        // The Y offset needs to be kept separate as we need the unmodified Y coordinate for the query.
+        var yOffset = 0;
+        
+        for (var i = 0; i < _postponedOperations.Count; i++)
+        {
+            if (processed.Contains(i))
+                continue;
+
+            var postponedOperation = _postponedOperations[i];
+
+            var offsetOperationX = OffsetX(postponedOperation.X);
+            
+            if (postponedOperation.Y < y && offsetOperationX >= y + yOffset)
+                yOffset--;
+                    
+            else if (postponedOperation.Y > y && offsetOperationX <= y + yOffset)
+                yOffset++;
+                    
+            else
+                continue;
+
+            processed.Add(i);
+
+            // The loop will increment 'i' before the next loop runs, so we need to set it to -1 in order to start again from 0.
+            i = -1;
+        }
+
+        return y + yOffset;
+    }
+    
+    private bool TryFindPostponedOperation(int x, int y, out PostponedOperation postponedOperation)
+    {
+        foreach (var operation in _postponedOperations)
+        {
+            if (operation.X != x || operation.Y != y)
+                continue;
+
+            postponedOperation = operation;
+            
+            return true;
+        }
+
+        postponedOperation = PostponedOperation.Empty;
+
+        return false;
+    }
+    #endregion
+        
+    #region Static Fields
+    private static DiffResult<TSource, TDestination> _emptyDiffResult;
+    #endregion
+        
+    #region Internal Static Methods
+    /// <summary>
+    /// Gets an empty <see cref="DiffResult{TOld,TNew}" /> that takes zero action when applied.
+    /// </summary>
+    internal static DiffResult<TSource, TDestination> Empty()
+    {
+        return _emptyDiffResult ??= new DiffResult<TSource, TDestination>(null, null, null, null);
+    }
+
+    /// <summary>
+    /// Gets a configured <see cref="DiffResult{TOld,TNew}" /> that ignores diagonals.
+    /// </summary>
+    internal static DiffResult<TSource, TDestination> NoDiagonals(IDiffCallback<TSource, TDestination> diffCallback, TSource[] oldArray, TDestination[] newArray)
+    {
+        var path = new int[oldArray.Length + newArray.Length];
+            
+        // Add X/remove operations first.
+        for (var x = 0; x < oldArray.Length; x++)
+            path[x] = (x << DiffOperation.Offset) | DiffOperation.Remove;
+            
+        // Then add Y/insert operations.
+        for (var y = 0; y < newArray.Length; y++)
+            path[y + oldArray.Length] = (y << DiffOperation.Offset) | DiffOperation.Insert;
+
+        return new DiffResult<TSource, TDestination>(diffCallback, oldArray, newArray, path);
+    }
+    #endregion
 }
