@@ -1,27 +1,26 @@
 ﻿using MvvmCross.ViewModels;
 using Sample.Assets;
 
-namespace Sample.MvvmCross.Core
+namespace Sample.MvvmCross.Core;
+
+public class PersonModel : MvxNotifyPropertyChanged
 {
-    public class PersonModel : MvxNotifyPropertyChanged
+    private Person _person;
+
+    public string Name => $"{_person.FirstName} {_person.LastName}";
+
+    public int ID => _person.ID;
+
+    public Person Person
     {
-        private Person _person;
+        get => _person;
 
-        public string Name => $"{_person.FirstName} {_person.LastName}";
-
-        public int ID => _person.ID;
-
-        public Person Person
+        set
         {
-            get => _person;
+            _person = value;
 
-            set
-            {
-                _person = value;
-
-                RaisePropertyChanged(() => Name);
-                RaisePropertyChanged(() => ID);
-            }
+            RaisePropertyChanged(() => Name);
+            RaisePropertyChanged(() => ID);
         }
     }
 }

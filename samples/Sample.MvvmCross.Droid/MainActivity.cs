@@ -5,21 +5,20 @@ using MvvmCross.DroidX.RecyclerView;
 using MvvmCross.Platforms.Android.Views;
 using Sample.MvvmCross.Core;
 
-namespace Sample.MvvmCross.Droid
+namespace Sample.MvvmCross.Droid;
+
+[Activity(Label = "@string/app_name", Theme = "@style/AppTheme.NoActionBar", MainLauncher = true)]
+public class MainActivity : MvxActivity<MainViewModel>
 {
-    [Activity(Label = "@string/app_name", Theme = "@style/AppTheme.NoActionBar", MainLauncher = true)]
-    public class MainActivity : MvxActivity<MainViewModel>
+    protected override void OnCreate(Bundle bundle)
     {
-        protected override void OnCreate(Bundle bundle)
-        {
-            base.OnCreate(bundle);
+        base.OnCreate(bundle);
 
-            SetContentView(Resource.Layout.activity_main);
+        SetContentView(Resource.Layout.activity_main);
             
-            var recyclerView = FindViewById<MvxRecyclerView>(Resource.Id.recyclerview);
+        var recyclerView = FindViewById<MvxRecyclerView>(Resource.Id.recyclerview);
 
-            recyclerView.SetLayoutManager(new LinearLayoutManager(this));
-            recyclerView.ItemTemplateSelector = new RecyclerViewTemplateSelector();
-        }
+        recyclerView.SetLayoutManager(new LinearLayoutManager(this));
+        recyclerView.ItemTemplateSelector = new RecyclerViewTemplateSelector();
     }
 }

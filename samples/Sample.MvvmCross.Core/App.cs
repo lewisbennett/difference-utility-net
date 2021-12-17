@@ -1,14 +1,13 @@
 ﻿using MvvmCross.ViewModels;
 
-namespace Sample.MvvmCross.Core
-{
-    public class App : MvxApplication
-    {
-        public override void Initialize()
-        {
-            base.Initialize();
+namespace Sample.MvvmCross.Core;
 
-            RegisterAppStart<MainViewModel>();
-        }
+public class App : MvxApplication
+{
+    public override void Initialize()
+    {
+        base.Initialize();
+
+        RegisterAppStart<MainViewModel>();
     }
 }
