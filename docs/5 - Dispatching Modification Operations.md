@@ -40,6 +40,10 @@ In the illustration above, we're processing the move of `H`. We can see that `Z`
 
 `Y` offsets are calculated in the same manner as `X` offsets. They are queried in the order they were created, and re-queried from the beginning whenever an offset is made, until no more offsets are possible.
 
+Move operations create two `X` offsets after being processed. If the operation's `X` coordinate is greater than the `Y` coordinate, the first `X` offset is created from the adjusted `Y` coordinate with a value of `1`, then the final offset is created at the adjusted `X` coordinate plus `1`, with a value of `-1`. This is because the indexes of the items between the 'to' and 'from' positions have now been incremented. Likewise, when the index of items is decremented (when the operation's `X` coordinate is less than the `Y` coordinate), the first offset is created at the adjusted `X` coordinate with a value of `-1`, and the final offset is created at the adjusted `Y` coordinate with a value of `1`.
+
+<img src="images/badfhlocz-operations-moves-2.jpg" width="50%" height="50%">
+
 -----
 
 ## Operation Handling Breakdown
