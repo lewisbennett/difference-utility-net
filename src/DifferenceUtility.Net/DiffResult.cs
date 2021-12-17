@@ -38,7 +38,7 @@ public class DiffResult<TSource, TDestination>
         if (IsEmpty())
             return;
 
-        DispatchUpdatesTo(new ObservableCollectionUpdateCallback<TSource, TDestination>(_diffCallback, observableCollection, _sourceArray, _destinationArray));
+        DispatchUpdatesTo(new ObservableCollectionUpdateCallback<TSource, TDestination>(_diffCallback, observableCollection, _destinationArray));
     }
         
     /// <summary>
@@ -83,7 +83,7 @@ public class DiffResult<TSource, TDestination>
                 {
                     var offsetY = OffsetY(currentY);
                         
-                    batchingCallback.OnInserted(offsetY, currentY);
+                    batchingCallback.OnInserted(offsetY, currentY, 1);
 
                     CreateXOffset(offsetY, true, operationId);
 

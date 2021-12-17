@@ -4,8 +4,8 @@ namespace Sample.NetConsole.Characters;
 
 public class CharacterDiffCallback : BaseDiffCallback<char, char>
 {
-    public override bool AreItemsTheSame(char oldItem, char newItem)
+    public override bool AreItemsTheSame(char sourceItem, char destinationItem)
     {
-        return oldItem == newItem;
+        return sourceItem == destinationItem;
     }
 }
