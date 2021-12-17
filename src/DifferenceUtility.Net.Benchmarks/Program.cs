@@ -10,10 +10,6 @@ namespace DifferenceUtility.Net.Benchmarks
 {
     public static class Program
     {
-        #region Fields
-        private static readonly Random _random = new();
-        #endregion
-        
         #region Configuration Constants
         /// <summary>
         /// Change this to the number of entries in the test data to benchmark.
@@ -29,13 +25,11 @@ namespace DifferenceUtility.Net.Benchmarks
         {
             GenerateAllBenchmarkData();
             
-            // Comment/uncomment required benchmarks.
 #if DEBUG
-            BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Guid>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
             BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Int>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
 #else
-            BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Guid>();
-            BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Int>();
+            // BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Guid>();
+            BenchmarkRunner.Run<DifferenceUtilityBenchmarks>();
 #endif
         }
         #endregion
@@ -43,8 +37,6 @@ namespace DifferenceUtility.Net.Benchmarks
         #region Private Methods
         /// <summary>
         /// Generates and saves test data, JSON serialized, to the project directory.
-        ///
-        /// Test data is generated in bundles. This means that the data will be the same, only the format and value of <see cref="Person{T}.ID" /> will changed.
         /// 
         /// This method will return if test data already exists for all supported ID data types, but will continue, and overwrite, any existing test data if any are missing.
         /// </summary>
@@ -62,185 +54,95 @@ namespace DifferenceUtility.Net.Benchmarks
             if (string.IsNullOrWhiteSpace(projectDirectory))
                 throw new InvalidOperationException("PROJECT_DIRECTORY environment variable missing.");
             
-            var testDataPath = Path.Combine(projectDirectory, "TestData");
-
-            var testDataPath_Guid = Path.Combine(testDataPath, $"test_data_guid_{testCount}.json");
-            var testDataPath_Int = Path.Combine(testDataPath, $"test_data_int_{testCount}.json");
+            var testDataPath = Path.Combine(Path.Combine(projectDirectory, "TestData"), $"test_data_{testCount}.json");
 
             // No need to generate new test data if it already exists.
-            if (File.Exists(testDataPath_Guid) && File.Exists(testDataPath_Int))
+            if (File.Exists(testDataPath))
                 return;
-            
-            string[] names;
 
-            // Import the name bank.
-            using (var streamReader = new StreamReader(Path.Combine(projectDirectory, "name_bank.json")))
-                names = JsonSerializer.Deserialize<string[]>(streamReader.ReadToEnd()).Distinct().ToArray();
-            
-            // Maximum number of test entries is 50% the length of the provided name bank,
-            // as half of the names will be used for original and dummy data.
-            if (testCount > names.Length / 2)
-                throw new InvalidOperationException("Test data item count cannot exceed half the provided names.");
+            var random = new Random();
 
-            // Insertions: +50% dummy data inserted randomly.
-            // Moves: 50% original data moved randomly
-            // Removals: 50% original data removed randomly.
-            // Updates: 50% original data names updated with dummy names - IDs remain the same.
-            // Everything: TODO
-            
-            var originalData = names.Take(testCount).Select(n =>
-            {
-                var nameSplit = n.Split(' ');
+            var originalData = new HashSet<int>();
 
-                return (FirstName: nameSplit[0], LastName: nameSplit[1]);
-
-            }).ToArray();
-            
-            var dummyData = names.Take(testCount).Select(n =>
-            {
-                var nameSplit = n.Split(' ');
-
-                return (FirstName: nameSplit[0], LastName: nameSplit[1]);
-
-            }).ToArray();
-
-            const int halfTestCount = testCount / 2;
-            
-            var insertionsIndexes = GetRandomIndexes(halfTestCount);
-            var (movesFromIndexes, movesToIndexes) = (GetRandomIndexes(halfTestCount), GetRandomIndexes(halfTestCount).ToList());
-            var removalsIndexes = GetRandomIndexes(halfTestCount);
-            var updatesIndexes = GetRandomIndexes(halfTestCount);
-
-            var insertions = originalData.ToList();
-            var moves = originalData.ToList();
-            var removals = originalData.ToList();
-            var updates = originalData.ToList();
-            
             for (var i = 0; i < testCount; i++)
             {
-                // Handle insert.
-                var insertIndex = Array.IndexOf(insertionsIndexes, i);
-                
-                if (insertIndex != -1)
-                    insertions.Insert(insertIndex, dummyData[i]);
+                int newItem;
 
-                // Handle move.
-                var moveIndex = Array.IndexOf(movesFromIndexes, i);
-
-                if (moveIndex != -1)
+                do
                 {
-                    var nameToMove = moves[moveIndex];
-                    var toIndex = movesToIndexes.First();
+                    newItem = random.Next(0, testCount);
                     
-                    moves.Remove(nameToMove);
-                    moves.Insert(toIndex, nameToMove);
+                } while (originalData.Contains(newItem));
 
-                    movesToIndexes.Remove(toIndex);
-                }
+                originalData.Add(newItem);
+            }
+            
+            // Insertions: +50% dummy data inserted randomly.
+            var insertData = originalData.ToList();
 
-                    // Handle remove.
-                var removalIndex = Array.IndexOf(removalsIndexes, i);
+            for (var i = 0; i < testCount / 2; i++)
+            {
+                int newItem;
+
+                do
+                {
+                    newItem = random.Next(testCount + 1, testCount + testCount / 2);
+
+                } while (originalData.Contains(newItem));
                 
-                if (removalIndex != -1)
-                    removals.RemoveAt(removalIndex);
-                
-                // Handle update.
-                var updateIndex = Array.IndexOf(updatesIndexes, i);
-
-                if (updateIndex != -1)
-                    updates[updateIndex] = dummyData[i];
+                insertData.Insert(random.Next(0, insertData.Count), newItem);
             }
 
-            var testData_Guid = GenerateBenchmarkData(originalData, dummyData, insertions, moves, removals, updates,
-                _ => Guid.NewGuid(),
-                _ => Guid.NewGuid());
+            // Moves: 50% original data moved randomly.
+            var moveData = originalData.ToList();
+
+            for (var i = 0; i < testCount / 2; i++)
+            {
+                int oldIndex, newIndex;
+
+                do
+                {
+                    oldIndex = random.Next(0, moveData.Count);
+                    newIndex = random.Next(0, moveData.Count);
+
+                } while (oldIndex == newIndex);
+
+                var item = moveData[oldIndex];
+                
+                moveData.RemoveAt(oldIndex);
+                
+                if (oldIndex < newIndex)
+                    moveData.Insert(newIndex - 1, item);
+                
+                else
+                    moveData.Insert(newIndex, item);
+            }
             
-            var testData_Int = GenerateBenchmarkData(originalData, dummyData, insertions, moves, removals, updates,
-                x => Array.IndexOf(originalData, x),
-                x => Array.IndexOf(dummyData, x));
+            // Removals: -50% original data removed randomly.
+            var removeData = originalData.ToList();
+
+            for (var i = 0; i < testCount / 2; i++)
+                removeData.RemoveAt(random.Next(0, removeData.Count));
+
+            // Everything: an entirely new collection.
+            var everythingData = new HashSet<int>();
+
+            for (var i = 0; i < testCount; i++)
+                everythingData.Add(random.Next(0, testCount * 2));
+
+            var benchmarkData = new BenchmarkData
+            {
+                EverythingTestData = everythingData.ToArray(),
+                InsertionTestData = insertData.ToArray(),
+                MovesTestData = moveData.ToArray(),
+                OriginalData = originalData.ToArray(),
+                RemovalsTestData = removeData.ToArray()
+            };
             
             // Serialize and save the tests.
-            using (var streamWriter = new StreamWriter(testDataPath_Guid))
-                streamWriter.WriteLine(JsonSerializer.Serialize(testData_Guid));
+            using var streamWriter = new StreamWriter(testDataPath);
 
-            using (var streamWriter = new StreamWriter(testDataPath_Int))
-                streamWriter.WriteLine(JsonSerializer.Serialize(testData_Int));
-        }
-        
-        private static BenchmarkData<T> GenerateBenchmarkData<T>(IList<(string FirstName, string LastName)> originalData,
-            IEnumerable<(string FirstName, string LastName)> dummyData,
-            IEnumerable<(string FirstName, string LastName)> insertions,
-            IEnumerable<(string FirstName, string LastName)> moves,
-            IEnumerable<(string FirstName, string LastName)> removals,
-            IList<(string FirstName, string LastName)> updates,
-            Func<(string FirstName, string LastName), T> originalDataCalculateId,
-            Func<(string FirstName, string LastName), T> dummyDataCalculateId)
-        {
-            var benchmarkData = new BenchmarkData<T>();
-
-            var originalDataIds = originalData.ToDictionary(o => o, originalDataCalculateId);
-            var dummyDataIds = dummyData.ToDictionary(d => d, dummyDataCalculateId);
-            
-            benchmarkData.OriginalData = originalData.Select(o => new Person<T>
-            {
-                FirstName = o.FirstName,
-                LastName = o.LastName,
-                ID = originalDataIds[o]
-                
-            }).ToArray();
-
-            benchmarkData.InsertionTestData = insertions.Select(i => new Person<T>
-            {
-                FirstName = i.FirstName,
-                LastName = i.LastName,
-                ID = originalDataIds.TryGetValue(i, out var id) ? id : dummyDataIds[i]
-                
-            }).ToArray();
-
-            benchmarkData.MovesTestData = moves.Select(m => new Person<T>
-            {
-                FirstName = m.FirstName,
-                LastName = m.LastName,
-                ID = originalDataIds[m]
-
-            }).ToArray();
-            
-            benchmarkData.RemovalsTestData = removals.Select(r => new Person<T>
-            {
-                FirstName = r.FirstName,
-                LastName = r.LastName,
-                ID = originalDataIds[r]
-
-            }).ToArray();
-            
-            benchmarkData.UpdatesTestData = updates.Select(u => new Person<T>
-            {
-                FirstName = u.FirstName,
-                LastName = u.LastName,
-                ID = originalDataIds[originalData[updates.IndexOf(u)]]
-                
-            }).ToArray();
-
-            return benchmarkData;
-        }
-        
-        private static int[] GetRandomIndexes(int count)
-        {
-            var indexes = new List<int>();
-
-            for (var i = 0; i < count; i++)
-                indexes.Add(i);
-            
-            while (count > 1)
-            {
-                count--;
-                
-                var k = _random.Next(count + 1);
-                
-                (indexes[k], indexes[count]) = (indexes[count], indexes[k]);
-            }
-
-            return indexes.ToArray();
+            streamWriter.WriteLine(JsonSerializer.Serialize(benchmarkData));
         }
         #endregion
     }
