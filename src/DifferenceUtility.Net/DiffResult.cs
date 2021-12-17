@@ -57,7 +57,7 @@ public class DiffResult<TSource, TDestination>
         if (updateCallback is not BatchingCollectionUpdateCallback batchingCallback)
             batchingCallback = new BatchingCollectionUpdateCallback(updateCallback);
         
-        // Provide capacity to avoid re-allocations. There will never be more offsets
+        // Provide capacity to avoid re-allocations. There will never be more offsets than items in the path.
         _offsets = new SortedList<int, (int From, int Offset)>(_path.Length);
         
         // Postponed operations only required if there are moves in the path.
