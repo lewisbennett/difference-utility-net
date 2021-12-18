@@ -48,7 +48,6 @@
 		</None>
 		<Compile Include="*.cs" />
 		<Compile Include="Base\**\*.cs" />
-		<Compile Include="Helper\Diagonal.cs" />
 		<Compile Include="Helper\DiffOperation.cs" />
 		<Compile Include="Helper\PostponedOperation.cs" />
 		<Compile Include="Instructions\**\*.cs" />
