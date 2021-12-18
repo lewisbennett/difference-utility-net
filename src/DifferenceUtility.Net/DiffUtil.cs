@@ -84,19 +84,20 @@ public static class DiffUtil
             }
 
             var score = 1;
-            
-            foreach (var diagonal in diagonals)
+
+            for (var diagonalIndex = 0; diagonalIndex < diagonals.Count; diagonalIndex++)
             {
+                var diagonal = diagonals[diagonalIndex];
+
                 if (diagonal.GlobalIndex < globalIndex - destinationArray.Length && diagonal.GlobalIndex % destinationArray.Length < globalIndex % destinationArray.Length)
                     score = Math.Max(score, diagonal.Score + 1);
             }
-
+            
             diagonals.Add((globalIndex, score));
 
             longestCommonSubsequenceLength = Math.Max(longestCommonSubsequenceLength, score);
         }
         
-        // The longest common subsequence will be zero if diagonals is null.
         if (diagonals is null)
             return DiffResult<TSource, TDestination>.NoDiagonals(diffCallback, sourceArray, destinationArray);
 
@@ -111,65 +112,49 @@ public static class DiffUtil
         {
             return currentX + currentY - longestCommonSubsequenceLength + 1;
         }
-        
+
         // Construct the path.
-        while (longestCommonSubsequenceLength > 0)
+        for (var diagonalIndex = diagonals.Count - 1; diagonalIndex >= 0; diagonalIndex--)
         {
-            var diagonalIndex = 0;
+            var diagonal = diagonals[diagonalIndex];
             
-            while (diagonalIndex < diagonals.Count)
+            if (diagonal.Score != longestCommonSubsequenceLength)
+                continue;
+            
+            var diagonalX = diagonal.GlobalIndex / destinationArray.Length;
+            var diagonalY = diagonal.GlobalIndex % destinationArray.Length;
+                
+            if (diagonalX > currentX || diagonalY > currentY)
+                continue;
+            
+            // Calculate the path between the current coordinates and the diagonal.
+            while (currentY > diagonalY)
             {
-                var diagonal = diagonals[diagonalIndex];
+                path[GetCurrentPathIndex()] = (currentY << DiffOperation.Offset) | DiffOperation.Insert;
 
-                // Check that the diagonal is within backwards range of the current coordinates.
-                if (diagonal.Score != longestCommonSubsequenceLength)
-                {
-                    diagonalIndex++;
-                    continue;
-                }
-                
-                var diagonalX = diagonal.GlobalIndex / destinationArray.Length;
-                var diagonalY = diagonal.GlobalIndex % destinationArray.Length;
-                
-                if (diagonalX > currentX || diagonalY > currentY)
-                {
-                    diagonalIndex++;
-                    continue;
-                }
-
-                // Calculate the path between the current coordinates and the diagonal.
-                while (currentY > diagonalY)
-                {
-                    path[GetCurrentPathIndex()] = (currentY << DiffOperation.Offset) | DiffOperation.Insert;
-
-                    currentY--;
-                }
-
-                while (currentX > diagonalX)
-                {
-                    path[GetCurrentPathIndex()] = (currentX << DiffOperation.Offset) | DiffOperation.Remove;
-                        
-                    currentX--;
-                }
-
-                // Now handle the diagonal.
-                var diagonalPayload = 0;
-
-                if (!diffCallback.AreContentsTheSame(sourceArray[currentX], destinationArray[currentY]))
-                    diagonalPayload |= DiffOperation.Update;
-                    
-                path[GetCurrentPathIndex()] = diagonalPayload;
-
-                currentX--;
                 currentY--;
-
-                longestCommonSubsequenceLength--;
-
-                // Remove the diagonal so it doesn't interfere with move calculation later on, if enabled.
-                diagonals.Remove(diagonal);
-
-                break;
             }
+
+            while (currentX > diagonalX)
+            {
+                path[GetCurrentPathIndex()] = (currentX << DiffOperation.Offset) | DiffOperation.Remove;
+                        
+                currentX--;
+            }
+            
+            // Now handle the diagonal.
+            if (diffCallback.AreContentsTheSame(sourceArray[currentX], destinationArray[currentY]))
+                path[GetCurrentPathIndex()] = DiffOperation.Update;
+            
+            currentX--;
+            currentY--;
+
+            longestCommonSubsequenceLength--;
+            
+            // If moves are enabled, removing the diagonal helps to speed up move detection later.
+            // If moves are disabled, there is a speed advantage by not removing the diagonal.
+            if (detectMoves)
+                diagonals.Remove(diagonal);
         }
         
         // Now we need to fill the gap between X0 Y0 and the first diagonal.
@@ -194,38 +179,49 @@ public static class DiffUtil
         // Moves are diagonals that aren't included in the path. As a result, they are represented as an
         // insert/remove operation, followed by the inverse later on in the path instructions. We have to
         // find these pairs and update their flags so that they're treated properly when applying the changes.
-        
-        foreach (var diagonal in diagonals)
+
+        var pathStartIndex = 0;
+
+        for (var diagonalIndex = 0; diagonalIndex < diagonals.Count; diagonalIndex++)
         {
+            var diagonal = diagonals[diagonalIndex];
+            
             int? xOperationIndex = null, yOperationIndex = null;
-                
-            for (var i = 0; i < path.Length; i++)
+
+            for (var operationIndex = pathStartIndex; operationIndex < path.Length; operationIndex++)
             {
-                var operation = path[i];
-                
+                var operation = path[operationIndex];
+
                 // Skip this item if the payload already has the move flag.
                 // If an item has already been processed, what was previously an encoded X coordinate will now be an encoded Y
                 // coordinate and vice versa. If these new values match a non-processed value, this may select the wrong indexes.
-                if ((operation & DiffOperation.Move) != 0)
+                if (operation == 0 || (operation & DiffOperation.Move) != 0)
                     continue;
-                
+
                 // Nested loop search not required since we're querying both X and Y. With this approach, no matter
                 // which coordinate we find first, it is guaranteed that the next one will be after it in the path.
-                
-                if (!xOperationIndex.HasValue && (operation & DiffOperation.Remove) != 0 && operation >> DiffOperation.Offset == diagonal.GlobalIndex / destinationArray.Length)
-                    xOperationIndex = i;
 
-                else if (!yOperationIndex.HasValue && (operation & DiffOperation.Insert) != 0 && operation >> DiffOperation.Offset == diagonal.GlobalIndex % destinationArray.Length)
-                    yOperationIndex = i;
-                
+                if (!xOperationIndex.HasValue && (operation & DiffOperation.Remove) != 0
+                    && operation >> DiffOperation.Offset == diagonal.GlobalIndex / destinationArray.Length)
+                {
+                    xOperationIndex = operationIndex;
+                }
+                else if (!yOperationIndex.HasValue && (operation & DiffOperation.Insert) != 0
+                    && operation >> DiffOperation.Offset == diagonal.GlobalIndex % destinationArray.Length)
+                {
+                    yOperationIndex = operationIndex;
+                }
+
                 if (xOperationIndex.HasValue && yOperationIndex.HasValue)
                     break;
+
+                pathStartIndex = operationIndex;
             }
-            
+
             // Both values are required to process a move operation.
             if (!xOperationIndex.HasValue || !yOperationIndex.HasValue)
                 continue;
-            
+
             var x = path[xOperationIndex.Value] >> DiffOperation.Offset;
             var y = path[yOperationIndex.Value] >> DiffOperation.Offset;
 

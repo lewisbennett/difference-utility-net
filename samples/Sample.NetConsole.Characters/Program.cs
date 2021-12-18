@@ -4,8 +4,8 @@ using DifferenceUtility.Net;
 using Sample.NetConsole.Characters;
 
 // Replace these strings to test difference calculation. The strings must only contain unique characters (i.e. no duplicates).
-const string source = "e873fcd624a5019b";
-const string destination = "57d2ef09b4a8c3";
+const string source = "badfhlocz";
+const string destination = "azhbdfc";
 
 // Create our items source with initial data.
 var data = new ObservableCollection<char>(source);
