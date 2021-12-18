@@ -143,7 +143,7 @@ public static class DiffUtil
             }
             
             // Now handle the diagonal.
-            if (diffCallback.AreContentsTheSame(sourceArray[currentX], destinationArray[currentY]))
+            if (!diffCallback.AreContentsTheSame(sourceArray[currentX], destinationArray[currentY]))
                 path[GetCurrentPathIndex()] = DiffOperation.Update;
             
             currentX--;

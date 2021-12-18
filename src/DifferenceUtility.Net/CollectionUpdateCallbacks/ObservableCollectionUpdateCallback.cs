@@ -16,7 +16,7 @@ public class ObservableCollectionUpdateCallback<TSource, TDestination> : ICollec
     public void OnChanged(int position, int datasourcePosition, int count)
     {
         for (var i = 0; i < count; i++)
-            _diffCallback.UpdateContents(_observableCollection[i + position], _destinationArray[datasourcePosition]);
+            _diffCallback.UpdateContents(_observableCollection[position + i], _destinationArray[datasourcePosition + i]);
     }
 
     /// <inheritdoc />

@@ -18,6 +18,9 @@ internal static class DiffOperation
     /// </summary>
     public const int Move = Remove << 1;
 
+    /// <summary>
+    /// The number of bits to offset a coordinate value from its operation flags.
+    /// </summary>
     public const int Offset = 4;
         
     /// <summary>

@@ -43,20 +43,19 @@ public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
     /// <inheritdoc />
     public void OnChanged(int position, int datasourcePosition, int count)
     {
-        if (_lastEventType == TypeChange &&
-            !(position > _lastEventPosition + _lastEventCount || position + count < _lastEventPosition || _lastEventDataSourcePosition != datasourcePosition))
+        if (_lastEventType == TypeChange
+            && position >= _lastEventPosition && position <= _lastEventPosition + _lastEventCount
+            && datasourcePosition >= _lastEventDataSourcePosition && datasourcePosition <= _lastEventDataSourcePosition + _lastEventCount)
         {
-            // Take potential overlap into account.
-            var previousEnd = _lastEventPosition + _lastEventCount;
-
+            _lastEventCount += count;
+            _lastEventDataSourcePosition = Math.Min(datasourcePosition, _lastEventDataSourcePosition);
             _lastEventPosition = Math.Min(position, _lastEventPosition);
-            _lastEventCount = Math.Max(previousEnd, position + count) - _lastEventPosition;
 
             return;
         }
-            
+        
         DispatchLastEvent();
-
+            
         _lastEventCount = count;
         _lastEventDataSourcePosition = datasourcePosition;
         _lastEventPosition = position;
@@ -100,7 +99,7 @@ public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
         if (_lastEventType == TypeRemove && _lastEventPosition >= position && _lastEventPosition <= position + count)
         {
             _lastEventCount += count;
-            _lastEventPosition = position;
+            _lastEventPosition = Math.Min(position, _lastEventPosition);
 
             return;
         }

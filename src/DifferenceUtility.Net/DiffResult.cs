@@ -204,14 +204,7 @@ public class DiffResult<TSource, TDestination>
         }
 
         // Finally, create the offset.
-        if (_offsets.TryGetValue(operationId + 1, out var incOffset) && incOffset.From == from)
-            _offsets[operationId + 1] = (Math.Max(incOffset.From, from), incOffset.Offset + offset);
-        
-        else if (_offsets.TryGetValue(operationId - 1, out var decOffset) && decOffset.From == from)
-            _offsets[operationId - 1] = (Math.Max(decOffset.From, from), decOffset.Offset + offset);
-        
-        else
-            _offsets[operationId] = (from, offset);
+        _offsets[operationId] = (from, offset);
     }
         
     private bool IsEmpty()
