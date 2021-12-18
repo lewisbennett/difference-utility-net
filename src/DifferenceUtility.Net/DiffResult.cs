@@ -21,7 +21,7 @@ public class DiffResult<TSource, TDestination>
     private readonly int _moveCount;
     private SortedList<int, (int From, int Offset)> _offsets;
     private readonly int[] _path;
-    private List<PostponedOperation> _postponedOperations;
+    private List<(int X, int Y, int OperationID)> _postponedOperations;
     private readonly TSource[] _sourceArray;
     #endregion
     
@@ -62,7 +62,7 @@ public class DiffResult<TSource, TDestination>
         
         // Postponed operations only required if there are moves in the path.
         if (_moveCount > 0)
-            _postponedOperations = new List<PostponedOperation>(_moveCount);
+            _postponedOperations = new List<(int, int, int)>(_moveCount);
             
         var currentX = -1;
         var currentY = -1;
@@ -71,7 +71,7 @@ public class DiffResult<TSource, TDestination>
         {
             var operation = _path[operationId];
 
-            PostponedOperation postponedOperation;
+            (int X, int Y, int OperationID) postponedOperation;
                 
             // Vertical movement.
             if ((operation & DiffOperation.Insert) != 0)
@@ -96,13 +96,8 @@ public class DiffResult<TSource, TDestination>
                 // Postpone the current operation if an operation with matching coordinates hasn't already been postponed.
                 if (!TryFindPostponedOperation(x, currentY, out postponedOperation))
                 {
-                    _postponedOperations.Add(new PostponedOperation
-                    {
-                        OperationID = operationId,
-                        X = x,
-                        Y = currentY
-                    });
-                        
+                    _postponedOperations.Add((x, currentY, operationId));
+                    
                     continue;
                 }
             }
@@ -129,13 +124,8 @@ public class DiffResult<TSource, TDestination>
                 // Try to find an existing postponed operation with the provided coordinates.
                 if (!TryFindPostponedOperation(currentX, y, out postponedOperation))
                 {
-                    _postponedOperations.Add(new PostponedOperation
-                    {
-                        OperationID = operationId,
-                        X = currentX,
-                        Y = y
-                    });
-                        
+                    _postponedOperations.Add((currentX, y, operationId));
+                    
                     continue;
                 }
             }
@@ -198,14 +188,18 @@ public class DiffResult<TSource, TDestination>
     private void CreateXOffset(int from, bool increment, int operationId)
     {
         var offset = increment ? 1 : -1;
-        
-        foreach (var (queryOperationId, (queryFrom, queryOffset)) in _offsets.ToList())
-        {
-            // The provided offset should be applied to offsets that are positioned after the provided 'from' position.
-            if (queryFrom > from)
-                _offsets[queryOperationId] = (queryFrom + offset, queryOffset);
-        }
 
+        var offsets = _offsets.ToArray();
+
+        for (var i = 0; i < offsets.Length; i++)
+        {
+            var queryOffset = offsets[i];
+            
+            // The provided offset should be applied to offsets that are positioned after the provided 'from' position.
+            if (queryOffset.Value.From > from)
+                _offsets[queryOffset.Key] = (queryOffset.Value.From + offset, queryOffset.Value.Offset);
+        }
+        
         // Finally, create the offset.
         _offsets[operationId] = (from, offset);
     }
@@ -220,21 +214,21 @@ public class DiffResult<TSource, TDestination>
         if (_offsets.Count == 0)
             return x;
         
-        var processed = new HashSet<int>();
-        
         var offsets = _offsets.Values;
+        
+        var processed = new List<int>(offsets.Count);
 
         for (var i = 0; i < offsets.Count; i++)
         {
             if (processed.Contains(i))
                 continue;
 
-            var (from, offset) = offsets[i];
+            var offset = offsets[i];
 
-            if (x < from)
+            if (x < offset.From)
                 continue;
 
-            x += offset;
+            x += offset.Offset;
 
             processed.Add(i);
 
@@ -252,7 +246,7 @@ public class DiffResult<TSource, TDestination>
         if (_postponedOperations is null || _postponedOperations.Count == 0)
             return y;
 
-        var processed = new HashSet<int>();
+        var processed = new List<int>(_postponedOperations.Count);
         
         // The Y offset needs to be kept separate as we need the unmodified Y coordinate for the query.
         var yOffset = 0;
@@ -284,19 +278,21 @@ public class DiffResult<TSource, TDestination>
         return y + yOffset;
     }
     
-    private bool TryFindPostponedOperation(int x, int y, out PostponedOperation postponedOperation)
+    private bool TryFindPostponedOperation(int x, int y, out (int, int, int) postponedOperation)
     {
-        foreach (var operation in _postponedOperations)
+        for (var postponedOperationIndex = 0; postponedOperationIndex < _postponedOperations.Count; postponedOperationIndex++)
         {
+            var operation = _postponedOperations[postponedOperationIndex];
+
             if (operation.X != x || operation.Y != y)
                 continue;
 
             postponedOperation = operation;
-            
+
             return true;
         }
 
-        postponedOperation = PostponedOperation.Empty;
+        postponedOperation = (-1, -1, -1);
 
         return false;
     }
