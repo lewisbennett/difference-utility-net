@@ -54,6 +54,12 @@ public static class DiffUtil
         // Guaranteed to be no diagonals if either array is empty.
         if (sourceArray.Length == 0 || destinationArray.Length == 0)
             return DiffResult<TSource, TDestination>.NoDiagonals(diffCallback, sourceArray, destinationArray);
+
+        // When calculating the path, we use a mixture of global index, X, and Y coordinates.
+        // The global index represents the position of the coordinates within the diff matrix.
+        // Global index = X * destination length + Y
+        // X = global index / destination length (cast to integer to avoid decimal places)
+        // Y = global index % destination length
         
         List<(int GlobalIndex, int Score)> diagonals = null;
         
@@ -61,10 +67,7 @@ public static class DiffUtil
 
         for (var globalIndex = 0; globalIndex < sourceArray.Length * destinationArray.Length; globalIndex++)
         {
-            var x = globalIndex / destinationArray.Length;
-            var y = globalIndex % destinationArray.Length;
-            
-            if (!diffCallback.AreItemsTheSame(sourceArray[x], destinationArray[y]))
+            if (!diffCallback.AreItemsTheSame(sourceArray[globalIndex / destinationArray.Length], destinationArray[globalIndex % destinationArray.Length]))
                 continue;
 
             if (diagonals is null)
@@ -208,14 +211,11 @@ public static class DiffUtil
                 
                 // Nested loop search not required since we're querying both X and Y. With this approach, no matter
                 // which coordinate we find first, it is guaranteed that the next one will be after it in the path.
-
-                var diagonalX = diagonal.GlobalIndex / destinationArray.Length;
-                var diagonalY = diagonal.GlobalIndex % destinationArray.Length;
                 
-                if (!xOperationIndex.HasValue && (operation & DiffOperation.Remove) != 0 && operation >> DiffOperation.Offset == diagonalX)
+                if (!xOperationIndex.HasValue && (operation & DiffOperation.Remove) != 0 && operation >> DiffOperation.Offset == diagonal.GlobalIndex / destinationArray.Length)
                     xOperationIndex = i;
 
-                else if (!yOperationIndex.HasValue && (operation & DiffOperation.Insert) != 0 && operation >> DiffOperation.Offset == diagonalY)
+                else if (!yOperationIndex.HasValue && (operation & DiffOperation.Insert) != 0 && operation >> DiffOperation.Offset == diagonal.GlobalIndex % destinationArray.Length)
                     yOperationIndex = i;
                 
                 if (xOperationIndex.HasValue && yOperationIndex.HasValue)
@@ -225,22 +225,22 @@ public static class DiffUtil
             // Both values are required to process a move operation.
             if (!xOperationIndex.HasValue || !yOperationIndex.HasValue)
                 continue;
-
-            var xOperation = path[xOperationIndex.Value];
-            var yOperation = path[yOperationIndex.Value];
-
-            var x = xOperation >> DiffOperation.Offset;
-            var y = yOperation >> DiffOperation.Offset;
             
+            var x = path[xOperationIndex.Value] >> DiffOperation.Offset;
+            var y = path[yOperationIndex.Value] >> DiffOperation.Offset;
+
             // Append additional flags to payload.
-            var additionalFlags = DiffOperation.Move;
-            
-            if (!diffCallback.AreContentsTheSame(sourceArray[x], destinationArray[y]))
-                additionalFlags |= DiffOperation.Update;
-
             // Moves require the X/Y coordinates to be swapped, but the flags should stay the same.
-            path[xOperationIndex.Value] = (y << DiffOperation.Offset) | DiffOperation.Remove | additionalFlags;
-            path[yOperationIndex.Value] = (x << DiffOperation.Offset) | DiffOperation.Insert | additionalFlags;
+            if (diffCallback.AreContentsTheSame(sourceArray[x], destinationArray[y]))
+            {
+                path[xOperationIndex.Value] = (y << DiffOperation.Offset) | DiffOperation.Remove | DiffOperation.Move;
+                path[yOperationIndex.Value] = (x << DiffOperation.Offset) | DiffOperation.Insert | DiffOperation.Move;
+            }
+            else
+            {
+                path[xOperationIndex.Value] = (y << DiffOperation.Offset) | DiffOperation.Remove | DiffOperation.Move | DiffOperation.Update;
+                path[yOperationIndex.Value] = (x << DiffOperation.Offset) | DiffOperation.Insert | DiffOperation.Move | DiffOperation.Update;
+            }
         }
 
         return new DiffResult<TSource, TDestination>(diffCallback, sourceArray, destinationArray, path, diagonals.Count);
