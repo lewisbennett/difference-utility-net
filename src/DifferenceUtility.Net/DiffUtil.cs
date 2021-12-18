@@ -55,48 +55,46 @@ public static class DiffUtil
         if (sourceArray.Length == 0 || destinationArray.Length == 0)
             return DiffResult<TSource, TDestination>.NoDiagonals(diffCallback, sourceArray, destinationArray);
         
-        // The maximum number of diagonals is the length of the shortest collection.
-        // Provide a capacity to reduce the number of re-allocations.
-        var diagonals = new List<Diagonal>(Math.Min(sourceArray.Length, destinationArray.Length));
+        List<(int GlobalIndex, int Score)> diagonals = null;
         
         var longestCommonSubsequenceLength = 0;
-        
-        for (var x = 0; x < sourceArray.Length; x++)
+
+        for (var globalIndex = 0; globalIndex < sourceArray.Length * destinationArray.Length; globalIndex++)
         {
-            for (var y = 0; y < destinationArray.Length; y++)
+            var x = globalIndex / destinationArray.Length;
+            var y = globalIndex % destinationArray.Length;
+            
+            if (!diffCallback.AreItemsTheSame(sourceArray[x], destinationArray[y]))
+                continue;
+
+            if (diagonals is null)
             {
-                if (!diffCallback.AreItemsTheSame(sourceArray[x], destinationArray[y]))
-                    continue;
-                
-                var score = 1;
-                
-                foreach (var diagonal in diagonals)
+                // The maximum possible number of diagonals is the length of the shortest provided collection.
+                diagonals = new List<(int GlobalIndex, int Score)>(Math.Min(sourceArray.Length, destinationArray.Length))
                 {
-                    // If the current X/Y coordinates exist within range of the query coordinates,
-                    // the query coordinates will both be less than the current X/Y coordinates.
-                    
-                    // Query the diagonals we've found already to see whether the current coordinates exist within each one's range.
-                    // We compare the diagonal's incremented score with the current score via Math.Max to accurately count the number
-                    // of diagonals that can be taken to get to the current coordinates.
-                    if (diagonal.X < x && diagonal.Y < y)
-                        score = Math.Max(score, diagonal.Score + 1);
-                }
-
-                diagonals.Add(new Diagonal
-                {
-                    Score = score,
-                    X = x,
-                    Y = y
-                });
-
-                longestCommonSubsequenceLength = Math.Max(longestCommonSubsequenceLength, score);
-                    
-                break;
+                    (globalIndex, 1)
+                };
+                
+                longestCommonSubsequenceLength = 1;
+                
+                continue;
             }
+
+            var score = 1;
+            
+            foreach (var diagonal in diagonals)
+            {
+                if (diagonal.GlobalIndex < globalIndex - destinationArray.Length && diagonal.GlobalIndex % destinationArray.Length < globalIndex % destinationArray.Length)
+                    score = Math.Max(score, diagonal.Score + 1);
+            }
+
+            diagonals.Add((globalIndex, score));
+
+            longestCommonSubsequenceLength = Math.Max(longestCommonSubsequenceLength, score);
         }
         
-        // If the longest common subsequence is zero then there are no diagonals in the diff matrix.
-        if (longestCommonSubsequenceLength == 0)
+        // The longest common subsequence will be zero if diagonals is null.
+        if (diagonals is null)
             return DiffResult<TSource, TDestination>.NoDiagonals(diffCallback, sourceArray, destinationArray);
 
         // By now, we have every diagonal in the matrix, as well as their scores for calculating the shortest possible path.
@@ -121,21 +119,30 @@ public static class DiffUtil
                 var diagonal = diagonals[diagonalIndex];
 
                 // Check that the diagonal is within backwards range of the current coordinates.
-                if (diagonal.Score != longestCommonSubsequenceLength || diagonal.X > currentX || diagonal.Y > currentY)
+                if (diagonal.Score != longestCommonSubsequenceLength)
+                {
+                    diagonalIndex++;
+                    continue;
+                }
+                
+                var diagonalX = diagonal.GlobalIndex / destinationArray.Length;
+                var diagonalY = diagonal.GlobalIndex % destinationArray.Length;
+                
+                if (diagonalX > currentX || diagonalY > currentY)
                 {
                     diagonalIndex++;
                     continue;
                 }
 
                 // Calculate the path between the current coordinates and the diagonal.
-                while (currentY > diagonal.Y)
+                while (currentY > diagonalY)
                 {
                     path[GetCurrentPathIndex()] = (currentY << DiffOperation.Offset) | DiffOperation.Insert;
 
                     currentY--;
                 }
 
-                while (currentX > diagonal.X)
+                while (currentX > diagonalX)
                 {
                     path[GetCurrentPathIndex()] = (currentX << DiffOperation.Offset) | DiffOperation.Remove;
                         
@@ -202,10 +209,13 @@ public static class DiffUtil
                 // Nested loop search not required since we're querying both X and Y. With this approach, no matter
                 // which coordinate we find first, it is guaranteed that the next one will be after it in the path.
 
-                if (!xOperationIndex.HasValue && (operation & DiffOperation.Remove) != 0 && operation >> DiffOperation.Offset == diagonal.X)
+                var diagonalX = diagonal.GlobalIndex / destinationArray.Length;
+                var diagonalY = diagonal.GlobalIndex % destinationArray.Length;
+                
+                if (!xOperationIndex.HasValue && (operation & DiffOperation.Remove) != 0 && operation >> DiffOperation.Offset == diagonalX)
                     xOperationIndex = i;
 
-                else if (!yOperationIndex.HasValue && (operation & DiffOperation.Insert) != 0 && operation >> DiffOperation.Offset == diagonal.Y)
+                else if (!yOperationIndex.HasValue && (operation & DiffOperation.Insert) != 0 && operation >> DiffOperation.Offset == diagonalY)
                     yOperationIndex = i;
                 
                 if (xOperationIndex.HasValue && yOperationIndex.HasValue)

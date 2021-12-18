@@ -11,5 +11,9 @@
         <ProjectReference Include="..\DifferenceUtility.Net\DifferenceUtility.Net.csproj" />
         <!-- <ProjectReference Include="..\DifferenceUtility.Net\DifferenceUtility.Net.csproj" PrivateAssets="All" /> -->
     </ItemGroup>
+    
+    <ItemGroup>
+      <Folder Include="TestData" />
+    </ItemGroup>
 
 </Project>

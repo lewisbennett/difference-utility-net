@@ -26,9 +26,8 @@ namespace DifferenceUtility.Net.Benchmarks
             GenerateAllBenchmarkData();
             
 #if DEBUG
-            BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Int>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
+            BenchmarkRunner.Run<DifferenceUtilityBenchmarks>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
 #else
-            // BenchmarkRunner.Run<DifferenceUtilityBenchmarks_Guid>();
             BenchmarkRunner.Run<DifferenceUtilityBenchmarks>();
 #endif
         }
@@ -86,9 +85,9 @@ namespace DifferenceUtility.Net.Benchmarks
 
                 do
                 {
-                    newItem = random.Next(testCount + 1, testCount + testCount / 2);
+                    newItem = random.Next(testCount, testCount / 2 + testCount + 1);
 
-                } while (originalData.Contains(newItem));
+                } while (insertData.Contains(newItem));
                 
                 insertData.Insert(random.Next(0, insertData.Count), newItem);
             }
