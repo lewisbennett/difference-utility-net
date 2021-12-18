@@ -48,7 +48,7 @@ const int stringLengthMax = 50;
 var random = new Random();
 
 // Simple loop to generate some random sequences that we can use for additional testing.
-for (var i = 0; i < 50; i++)
+for (var i = 0; i < 500; i++)
 {
     var stringBuilder = new HashSet<char>();
 

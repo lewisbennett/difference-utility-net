@@ -26,8 +26,10 @@ namespace DifferenceUtility.Net.Benchmarks
             GenerateAllBenchmarkData();
             
 #if DEBUG
+            BenchmarkRunner.Run<CalculateDiffBenchmarks>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
             BenchmarkRunner.Run<DifferenceUtilityBenchmarks>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
 #else
+            // BenchmarkRunner.Run<CalculateDiffBenchmarks>();
             BenchmarkRunner.Run<DifferenceUtilityBenchmarks>();
 #endif
         }

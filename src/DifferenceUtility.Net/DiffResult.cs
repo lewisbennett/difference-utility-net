@@ -177,6 +177,9 @@ public class DiffResult<TSource, TDestination>
         }
 
         batchingCallback.DispatchLastEvent();
+        
+        _offsets.Clear();
+        _postponedOperations?.Clear();
     }
     #endregion
     
