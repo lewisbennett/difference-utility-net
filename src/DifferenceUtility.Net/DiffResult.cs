@@ -171,6 +171,14 @@ public class DiffResult<TSource, TDestination>
         _offsets.Clear();
         _postponedOperations?.Clear();
     }
+
+    /// <summary>
+    /// Gets the calculated path for applying the diff result. See <see cref="DiffOperation" /> for decoding.
+    /// </summary>
+    public int[] GetPath()
+    {
+        return _path.ToArray();
+    }
     #endregion
 
     #region Constructors
