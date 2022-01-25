@@ -98,3 +98,9 @@ foreach (var payload in diffPath)
     // else
     //     Console.WriteLine($"  {destination[currentY]}");
 }
+
+// Apply the updates.
+diffResult.DispatchUpdatesTo(data);
+
+foreach (var item in data)
+    Console.Write(item);
