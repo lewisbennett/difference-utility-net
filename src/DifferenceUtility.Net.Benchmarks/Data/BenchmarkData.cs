@@ -10,7 +10,7 @@ public class BenchmarkData
     /// </summary>
     [JsonPropertyName("everythingTestData")]
     public int[] EverythingTestData { get; set; }
-    
+
     /// <summary>
     /// Gets or sets the test data for the insertion test.
     /// </summary>

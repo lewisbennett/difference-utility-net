@@ -10,7 +10,7 @@ public class ObservableCollectionUpdateCallback<TSource, TDestination> : ICollec
     private readonly IDiffCallback<TSource, TDestination> _diffCallback;
     private readonly ObservableCollection<TSource> _observableCollection;
     #endregion
-        
+
     #region Public Methods
     /// <inheritdoc />
     public void OnChanged(int position, int datasourcePosition, int count)
@@ -26,10 +26,10 @@ public class ObservableCollectionUpdateCallback<TSource, TDestination> : ICollec
         {
             var index = i + insertPosition;
             var item = _diffCallback.ConstructFinalItem(_destinationArray[itemPosition + i]);
-            
+
             if (index > _observableCollection.Count - 1)
                 _observableCollection.Add(item);
-            
+
             else
                 _observableCollection.Insert(index, item);
         }
@@ -41,7 +41,7 @@ public class ObservableCollectionUpdateCallback<TSource, TDestination> : ICollec
         if (fromPosition != toPosition)
             _observableCollection.Move(fromPosition, toPosition);
     }
-        
+
     /// <inheritdoc />
     public void OnRemoved(int position, int count)
     {
@@ -49,7 +49,7 @@ public class ObservableCollectionUpdateCallback<TSource, TDestination> : ICollec
             _observableCollection.RemoveAt(position);
     }
     #endregion
-        
+
     #region Constructors
     public ObservableCollectionUpdateCallback(IDiffCallback<TSource, TDestination> diffCallback, ObservableCollection<TSource> observableCollection, TDestination[] destinationArray)
     {

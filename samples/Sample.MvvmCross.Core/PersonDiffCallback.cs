@@ -13,7 +13,7 @@ public class PersonDiffCallback : BaseDiffCallback<PersonModel, Person>
         return EqualityComparer<string>.Default.Equals(sourceItem.Person.FirstName, destinationItem.FirstName)
             && EqualityComparer<string>.Default.Equals(sourceItem.Person.LastName, destinationItem.LastName);
     }
-        
+
     public override bool AreItemsTheSame(PersonModel sourceItem, Person destinationItem)
     {
         // Items are the same if their persistant IDs are the same.

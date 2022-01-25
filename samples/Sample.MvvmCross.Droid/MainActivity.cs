@@ -15,7 +15,7 @@ public class MainActivity : MvxActivity<MainViewModel>
         base.OnCreate(bundle);
 
         SetContentView(Resource.Layout.activity_main);
-            
+
         var recyclerView = FindViewById<MvxRecyclerView>(Resource.Id.recyclerview);
 
         recyclerView.SetLayoutManager(new LinearLayoutManager(this));

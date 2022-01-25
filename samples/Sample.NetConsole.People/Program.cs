@@ -13,18 +13,25 @@ data.CollectionChanged += (s, e) =>
     switch (e.Action)
     {
         case NotifyCollectionChangedAction.Add:
+
             Console.WriteLine($"Item added at index: {e.NewStartingIndex}");
+
             break;
 
         case NotifyCollectionChangedAction.Remove:
+
             Console.WriteLine($"Item removed at index: {e.OldStartingIndex}");
+
             break;
-    
+
         case NotifyCollectionChangedAction.Move:
+
             Console.WriteLine($"Item moved from index: {e.OldStartingIndex} to {e.NewStartingIndex}");
+
             break;
-    
+
         default:
+
             throw new NotImplementedException();
     }
 };

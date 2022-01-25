@@ -12,7 +12,7 @@ internal static class DiffOperation
     /// Represents a remove operation.
     /// </summary>
     public const int Remove = Insert << 1;
-        
+
     /// <summary>
     /// Represents a move operation.
     /// </summary>
@@ -22,7 +22,7 @@ internal static class DiffOperation
     /// The number of bits to offset a coordinate value from its operation flags.
     /// </summary>
     public const int Offset = 4;
-        
+
     /// <summary>
     /// Represents an update operation.
     /// </summary>

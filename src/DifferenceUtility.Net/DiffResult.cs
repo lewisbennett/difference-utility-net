@@ -24,7 +24,7 @@ public class DiffResult<TSource, TDestination>
     private List<(int X, int Y, int OperationID)> _postponedOperations;
     private readonly TSource[] _sourceArray;
     #endregion
-    
+
     #region Public Methods
     /// <summary>
     /// Dispatches the update events to the given collection.
@@ -40,7 +40,7 @@ public class DiffResult<TSource, TDestination>
 
         DispatchUpdatesTo(new ObservableCollectionUpdateCallback<TSource, TDestination>(_diffCallback, observableCollection, _destinationArray));
     }
-        
+
     /// <summary>
     /// <para>Dispatches update operations to the given callback.</para>
     /// <para>These updates are atomic such that the first update call affects every update call that comes after it.</para>
@@ -50,29 +50,29 @@ public class DiffResult<TSource, TDestination>
     {
         if (updateCallback is null)
             throw new ArgumentNullException(nameof(updateCallback));
-            
+
         if (IsEmpty())
             return;
 
         if (updateCallback is not BatchingCollectionUpdateCallback batchingCallback)
             batchingCallback = new BatchingCollectionUpdateCallback(updateCallback);
-        
+
         // Provide capacity to avoid re-allocations. There will never be more offsets than items in the path.
         _offsets = new SortedList<int, (int From, int Offset)>(_path.Length);
-        
+
         // Postponed operations only required if there are moves in the path.
         if (_moveCount > 0)
             _postponedOperations = new List<(int, int, int)>(_moveCount);
-            
+
         var currentX = -1;
         var currentY = -1;
-            
+
         for (var operationId = 0; operationId < _path.Length; operationId++)
         {
             var operation = _path[operationId];
 
             (int X, int Y, int OperationID) postponedOperation;
-                
+
             // Vertical movement.
             if ((operation & DiffOperation.Insert) != 0)
             {
@@ -82,7 +82,7 @@ public class DiffResult<TSource, TDestination>
                 if ((operation & DiffOperation.Move) == 0)
                 {
                     var offsetY = OffsetY(currentY);
-                        
+
                     batchingCallback.OnInserted(offsetY, currentY, 1);
 
                     CreateXOffset(offsetY, true, operationId);
@@ -92,12 +92,12 @@ public class DiffResult<TSource, TDestination>
 
                 // X coordinate encoded in payload.
                 var x = operation >> DiffOperation.Offset;
-                    
+
                 // Postpone the current operation if an operation with matching coordinates hasn't already been postponed.
                 if (!TryFindPostponedOperation(x, currentY, out postponedOperation))
                 {
                     _postponedOperations.Add((x, currentY, operationId));
-                    
+
                     continue;
                 }
             }
@@ -120,12 +120,12 @@ public class DiffResult<TSource, TDestination>
 
                 // Y coordinate encoded in payload.
                 var y = operation >> DiffOperation.Offset;
-                    
+
                 // Try to find an existing postponed operation with the provided coordinates.
                 if (!TryFindPostponedOperation(currentX, y, out postponedOperation))
                 {
                     _postponedOperations.Add((currentX, y, operationId));
-                    
+
                     continue;
                 }
             }
@@ -135,10 +135,10 @@ public class DiffResult<TSource, TDestination>
                 // Diagonal operations don't contain any coordinates, so just increment normally.
                 currentX++;
                 currentY++;
-                
+
                 if ((operation & DiffOperation.Update) != 0)
                     batchingCallback.OnChanged(OffsetX(currentX), currentY, 1);
-                
+
                 continue;
             }
 
@@ -147,12 +147,12 @@ public class DiffResult<TSource, TDestination>
             // Apply offsets.
             var offsetPostponedX = OffsetX(postponedOperation.X);
             var offsetPostponedY = OffsetY(postponedOperation.Y);
-                
+
             if ((operation & DiffOperation.Update) != 0)
                 batchingCallback.OnChanged(offsetPostponedX, postponedOperation.Y, 1);
 
             batchingCallback.OnMoved(offsetPostponedX, offsetPostponedY);
-                
+
             // Create the offsets as a result of the move operation.
             if (offsetPostponedX > offsetPostponedY)
             {
@@ -167,12 +167,12 @@ public class DiffResult<TSource, TDestination>
         }
 
         batchingCallback.DispatchLastEvent();
-        
+
         _offsets.Clear();
         _postponedOperations?.Clear();
     }
     #endregion
-    
+
     #region Constructors
     internal DiffResult(IDiffCallback<TSource, TDestination> diffCallback, TSource[] sourceArray, TDestination[] destinationArray, int[] path, int moveCount = 0)
     {
@@ -183,7 +183,7 @@ public class DiffResult<TSource, TDestination>
         _sourceArray = sourceArray;
     }
     #endregion
-        
+
     #region Private Methods
     private void CreateXOffset(int from, bool increment, int operationId)
     {
@@ -194,28 +194,28 @@ public class DiffResult<TSource, TDestination>
         for (var i = 0; i < offsets.Length; i++)
         {
             var queryOffset = offsets[i];
-            
+
             // The provided offset should be applied to offsets that are positioned after the provided 'from' position.
             if (queryOffset.Value.From > from)
                 _offsets[queryOffset.Key] = (queryOffset.Value.From + offset, queryOffset.Value.Offset);
         }
-        
+
         // Finally, create the offset.
         _offsets[operationId] = (from, offset);
     }
-        
+
     private bool IsEmpty()
     {
         return _path is null || _path.Length == 0 || _diffCallback is null || _sourceArray is null || _destinationArray is null || _sourceArray.Length == 0 && _destinationArray.Length == 0;
     }
-        
+
     private int OffsetX(int x)
     {
         if (_offsets.Count == 0)
             return x;
-        
+
         var offsets = _offsets.Values;
-        
+
         var processed = new List<int>(offsets.Count);
 
         for (var i = 0; i < offsets.Count; i++)
@@ -235,7 +235,7 @@ public class DiffResult<TSource, TDestination>
             // The loop will increment 'i' before the next loop runs, so we need to set it to -1 in order to start again from 0.
             i = -1;
         }
-        
+
         return x;
     }
 
@@ -247,10 +247,10 @@ public class DiffResult<TSource, TDestination>
             return y;
 
         var processed = new List<int>(_postponedOperations.Count);
-        
+
         // The Y offset needs to be kept separate as we need the unmodified Y coordinate for the query.
         var yOffset = 0;
-        
+
         for (var i = 0; i < _postponedOperations.Count; i++)
         {
             if (processed.Contains(i))
@@ -259,13 +259,13 @@ public class DiffResult<TSource, TDestination>
             var postponedOperation = _postponedOperations[i];
 
             var offsetOperationX = OffsetX(postponedOperation.X);
-            
+
             if (postponedOperation.Y < y && offsetOperationX >= y + yOffset)
                 yOffset--;
-                    
+
             else if (postponedOperation.Y > y && offsetOperationX <= y + yOffset)
                 yOffset++;
-                    
+
             else
                 continue;
 
@@ -277,7 +277,7 @@ public class DiffResult<TSource, TDestination>
 
         return y + yOffset;
     }
-    
+
     private bool TryFindPostponedOperation(int x, int y, out (int, int, int) postponedOperation)
     {
         for (var postponedOperationIndex = 0; postponedOperationIndex < _postponedOperations.Count; postponedOperationIndex++)
@@ -297,11 +297,11 @@ public class DiffResult<TSource, TDestination>
         return false;
     }
     #endregion
-        
+
     #region Static Fields
     private static DiffResult<TSource, TDestination> _emptyDiffResult;
     #endregion
-        
+
     #region Internal Static Methods
     /// <summary>
     /// Gets an empty <see cref="DiffResult{TOld,TNew}" /> that takes zero action when applied.
@@ -317,11 +317,11 @@ public class DiffResult<TSource, TDestination>
     internal static DiffResult<TSource, TDestination> NoDiagonals(IDiffCallback<TSource, TDestination> diffCallback, TSource[] oldArray, TDestination[] newArray)
     {
         var path = new int[oldArray.Length + newArray.Length];
-            
+
         // Add X/remove operations first.
         for (var x = 0; x < oldArray.Length; x++)
             path[x] = (x << DiffOperation.Offset) | DiffOperation.Remove;
-            
+
         // Then add Y/insert operations.
         for (var y = 0; y < newArray.Length; y++)
             path[y + oldArray.Length] = (y << DiffOperation.Offset) | DiffOperation.Insert;

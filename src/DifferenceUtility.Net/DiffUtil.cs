@@ -50,7 +50,7 @@ public static class DiffUtil
 
         if (sourceArray.Length == 0 && destinationArray.Length == 0)
             return DiffResult<TSource, TDestination>.Empty();
-        
+
         // Guaranteed to be no diagonals if either array is empty.
         if (sourceArray.Length == 0 || destinationArray.Length == 0)
             return DiffResult<TSource, TDestination>.NoDiagonals(diffCallback, sourceArray, destinationArray);
@@ -60,9 +60,9 @@ public static class DiffUtil
         // Global index = X * destination length + Y
         // X = global index / destination length (cast to integer to avoid decimal places)
         // Y = global index % destination length
-        
+
         List<(int GlobalIndex, int Score)> diagonals = null;
-        
+
         var longestCommonSubsequenceLength = 0;
 
         for (var globalIndex = 0; globalIndex < sourceArray.Length * destinationArray.Length; globalIndex++)
@@ -77,9 +77,9 @@ public static class DiffUtil
                 {
                     (globalIndex, 1)
                 };
-                
+
                 longestCommonSubsequenceLength = 1;
-                
+
                 continue;
             }
 
@@ -92,22 +92,22 @@ public static class DiffUtil
                 if (diagonal.GlobalIndex < globalIndex - destinationArray.Length && diagonal.GlobalIndex % destinationArray.Length < globalIndex % destinationArray.Length)
                     score = Math.Max(score, diagonal.Score + 1);
             }
-            
+
             diagonals.Add((globalIndex, score));
 
             longestCommonSubsequenceLength = Math.Max(longestCommonSubsequenceLength, score);
         }
-        
+
         if (diagonals is null)
             return DiffResult<TSource, TDestination>.NoDiagonals(diffCallback, sourceArray, destinationArray);
 
         // By now, we have every diagonal in the matrix, as well as their scores for calculating the shortest possible path.
-        
+
         var path = new int[sourceArray.Length + destinationArray.Length - longestCommonSubsequenceLength];
-        
+
         var currentX = sourceArray.Length - 1;
         var currentY = destinationArray.Length - 1;
-        
+
         int GetCurrentPathIndex()
         {
             return currentX + currentY - longestCommonSubsequenceLength + 1;
@@ -117,16 +117,16 @@ public static class DiffUtil
         for (var diagonalIndex = diagonals.Count - 1; diagonalIndex >= 0; diagonalIndex--)
         {
             var diagonal = diagonals[diagonalIndex];
-            
+
             if (diagonal.Score != longestCommonSubsequenceLength)
                 continue;
-            
+
             var diagonalX = diagonal.GlobalIndex / destinationArray.Length;
             var diagonalY = diagonal.GlobalIndex % destinationArray.Length;
-                
+
             if (diagonalX > currentX || diagonalY > currentY)
                 continue;
-            
+
             // Calculate the path between the current coordinates and the diagonal.
             while (currentY > diagonalY)
             {
@@ -138,40 +138,40 @@ public static class DiffUtil
             while (currentX > diagonalX)
             {
                 path[GetCurrentPathIndex()] = (currentX << DiffOperation.Offset) | DiffOperation.Remove;
-                        
+
                 currentX--;
             }
-            
+
             // Now handle the diagonal.
             if (!diffCallback.AreContentsTheSame(sourceArray[currentX], destinationArray[currentY]))
                 path[GetCurrentPathIndex()] = DiffOperation.Update;
-            
+
             currentX--;
             currentY--;
 
             longestCommonSubsequenceLength--;
-            
+
             // If moves are enabled, removing the diagonal helps to speed up move detection later.
             // If moves are disabled, there is a speed advantage by not removing the diagonal.
             if (detectMoves)
                 diagonals.Remove(diagonal);
         }
-        
+
         // Now we need to fill the gap between X0 Y0 and the first diagonal.
         while (currentY >= 0)
         {
             path[GetCurrentPathIndex()] = (currentY << DiffOperation.Offset) | DiffOperation.Insert;
-                
+
             currentY--;
         }
-        
+
         while (currentX >= 0)
         {
             path[GetCurrentPathIndex()] = (currentX << DiffOperation.Offset) | DiffOperation.Remove;
-                
+
             currentX--;
         }
-        
+
         // If move detection is disabled, we can return here to avoid the extra pass required to modify move operations.
         if (!detectMoves)
             return new DiffResult<TSource, TDestination>(diffCallback, sourceArray, destinationArray, path);
@@ -185,7 +185,7 @@ public static class DiffUtil
         for (var diagonalIndex = 0; diagonalIndex < diagonals.Count; diagonalIndex++)
         {
             var diagonal = diagonals[diagonalIndex];
-            
+
             int? xOperationIndex = null, yOperationIndex = null;
 
             for (var operationIndex = pathStartIndex; operationIndex < path.Length; operationIndex++)
@@ -207,7 +207,7 @@ public static class DiffUtil
                     xOperationIndex = operationIndex;
                 }
                 else if (!yOperationIndex.HasValue && (operation & DiffOperation.Insert) != 0
-                    && operation >> DiffOperation.Offset == diagonal.GlobalIndex % destinationArray.Length)
+                         && operation >> DiffOperation.Offset == diagonal.GlobalIndex % destinationArray.Length)
                 {
                     yOperationIndex = operationIndex;
                 }

@@ -7,5 +7,7 @@
     // Link to bug report:
     // https://developercommunity.visualstudio.com/content/problem/1244809/error-cs0518-predefined-type-systemruntimecompiler.html
 
-    internal static class IsExternalInit { }
+    internal static class IsExternalInit
+    {
+    }
 }

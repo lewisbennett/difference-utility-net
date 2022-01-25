@@ -13,7 +13,7 @@ public interface ICollectionUpdateCallback
     /// <param name="datasourcePosition">The position of the item to use as a datasource to update the existing item.</param>
     /// <param name="count">The number of items which have changed.</param>
     void OnChanged(int position, int datasourcePosition, int count);
-        
+
     /// <summary>
     /// Called when <paramref name="count" /> items are inserted at the given <paramref name="insertPosition" />.
     /// </summary>
@@ -28,7 +28,7 @@ public interface ICollectionUpdateCallback
     /// <param name="fromPosition">The previous position of the item before the move.</param>
     /// <param name="toPosition">The new position of the item.</param>
     void OnMoved(int fromPosition, int toPosition);
-        
+
     /// <summary>
     /// Called when <paramref name="count" /> number of items are removed from the given <paramref name="position" />.
     /// </summary>

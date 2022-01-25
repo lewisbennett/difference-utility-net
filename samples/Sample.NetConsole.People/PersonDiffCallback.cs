@@ -19,7 +19,7 @@ public class PersonDiffCallback : BaseDiffCallback<Person, Person>
         // Items are the same if their persistant IDs are the same.
         return sourceItem.ID == destinationItem.ID;
     }
-        
+
     public override void UpdateContents(Person item, Person dataSource)
     {
         base.UpdateContents(item, dataSource);

@@ -10,7 +10,7 @@ public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
     private int _lastEventCount = -1, _lastEventDataSourcePosition = -1, _lastEventPosition = -1, _lastEventType = TypeNone;
     private readonly ICollectionUpdateCallback _wrappedCallback;
     #endregion
-        
+
     #region Public Methods
     /// <summary>
     /// <see cref="BatchingCollectionUpdateCallback" /> holds onto the last event to see if it can be merged with the next one.
@@ -21,25 +21,32 @@ public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
         switch (_lastEventType)
         {
             case TypeAdd:
+
                 _wrappedCallback.OnInserted(_lastEventPosition, _lastEventDataSourcePosition, _lastEventCount);
+
                 break;
-                
+
             case TypeChange:
+
                 _wrappedCallback.OnChanged(_lastEventPosition, _lastEventDataSourcePosition, _lastEventCount);
+
                 break;
-                
+
             case TypeRemove:
+
                 _wrappedCallback.OnRemoved(_lastEventPosition, _lastEventCount);
+
                 break;
 
             default:
+
                 return;
         }
 
         _lastEventDataSourcePosition = -1;
         _lastEventType = TypeNone;
     }
-        
+
     /// <inheritdoc />
     public void OnChanged(int position, int datasourcePosition, int count)
     {
@@ -53,15 +60,15 @@ public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
 
             return;
         }
-        
+
         DispatchLastEvent();
-            
+
         _lastEventCount = count;
         _lastEventDataSourcePosition = datasourcePosition;
         _lastEventPosition = position;
         _lastEventType = TypeChange;
     }
-        
+
     /// <inheritdoc />
     public void OnInserted(int insertPosition, int itemPosition, int count)
     {
@@ -75,9 +82,9 @@ public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
 
             return;
         }
-            
+
         DispatchLastEvent();
-            
+
         _lastEventCount = count;
         _lastEventDataSourcePosition = itemPosition;
         _lastEventPosition = insertPosition;
@@ -89,10 +96,10 @@ public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
     {
         // Moves are not merged.
         DispatchLastEvent();
-            
+
         _wrappedCallback.OnMoved(fromPosition, toPosition);
     }
-        
+
     /// <inheritdoc />
     public void OnRemoved(int position, int count)
     {
@@ -103,7 +110,7 @@ public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
 
             return;
         }
-            
+
         DispatchLastEvent();
 
         _lastEventCount = count;
@@ -111,14 +118,14 @@ public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
         _lastEventType = TypeRemove;
     }
     #endregion
-        
+
     #region Constructors
     public BatchingCollectionUpdateCallback([NotNull] ICollectionUpdateCallback callback)
     {
         _wrappedCallback = callback;
     }
     #endregion
-        
+
     #region Private Constant Values
     private const int TypeNone = 0;
     private const int TypeAdd = 1;

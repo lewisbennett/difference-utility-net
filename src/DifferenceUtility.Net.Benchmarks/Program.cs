@@ -16,7 +16,7 @@ namespace DifferenceUtility.Net.Benchmarks
         /// </summary>
         public const int TestCount = 10;
         #endregion
-        
+
         #region Public Methods
         /// <summary>
         /// // Main application entry point.
@@ -24,7 +24,7 @@ namespace DifferenceUtility.Net.Benchmarks
         public static void Main()
         {
             GenerateAllBenchmarkData();
-            
+
 #if DEBUG
             BenchmarkRunner.Run<CalculateDiffBenchmarks>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
             BenchmarkRunner.Run<DifferenceUtilityBenchmarks>(new BenchmarkDotNet.Configs.DebugInProcessConfig());
@@ -34,7 +34,7 @@ namespace DifferenceUtility.Net.Benchmarks
 #endif
         }
         #endregion
-        
+
         #region Private Methods
         /// <summary>
         /// Generates and saves test data, JSON serialized, to the project directory.
@@ -54,7 +54,7 @@ namespace DifferenceUtility.Net.Benchmarks
 
             if (string.IsNullOrWhiteSpace(projectDirectory))
                 throw new InvalidOperationException("PROJECT_DIRECTORY environment variable missing.");
-            
+
             var testDataPath = Path.Combine(Path.Combine(projectDirectory, "TestData"), $"test_data_{testCount}.json");
 
             // No need to generate new test data if it already exists.
@@ -72,12 +72,12 @@ namespace DifferenceUtility.Net.Benchmarks
                 do
                 {
                     newItem = random.Next(0, testCount);
-                    
+
                 } while (originalData.Contains(newItem));
 
                 originalData.Add(newItem);
             }
-            
+
             // Insertions: +50% dummy data inserted randomly.
             var insertData = originalData.ToList();
 
@@ -90,7 +90,7 @@ namespace DifferenceUtility.Net.Benchmarks
                     newItem = random.Next(testCount, testCount / 2 + testCount + 1);
 
                 } while (insertData.Contains(newItem));
-                
+
                 insertData.Insert(random.Next(0, insertData.Count), newItem);
             }
 
@@ -109,16 +109,16 @@ namespace DifferenceUtility.Net.Benchmarks
                 } while (oldIndex == newIndex);
 
                 var item = moveData[oldIndex];
-                
+
                 moveData.RemoveAt(oldIndex);
-                
+
                 if (oldIndex < newIndex)
                     moveData.Insert(newIndex - 1, item);
-                
+
                 else
                     moveData.Insert(newIndex, item);
             }
-            
+
             // Removals: -50% original data removed randomly.
             var removeData = originalData.ToList();
 
@@ -139,7 +139,7 @@ namespace DifferenceUtility.Net.Benchmarks
                 OriginalData = originalData.ToArray(),
                 RemovalsTestData = removeData.ToArray()
             };
-            
+
             // Serialize and save the tests.
             using var streamWriter = new StreamWriter(testDataPath);
 

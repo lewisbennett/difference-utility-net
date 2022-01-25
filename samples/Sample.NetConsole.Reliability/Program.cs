@@ -54,7 +54,7 @@ for (var i = 0; i < 500; i++)
 
     var index = 0;
     var stringLength = random.Next(stringLengthMin, stringLengthMax);
-    
+
     while (index < stringLength)
     {
         var @char = (char)random.Next(0, 100);
@@ -65,7 +65,7 @@ for (var i = 0; i < 500; i++)
             index++;
         }
     }
-    
+
     finalStrings.Add(string.Join(string.Empty, stringBuilder));
 }
 
@@ -85,13 +85,13 @@ foreach (var @string in finalStrings)
     {
         if (@string == testString)
             continue;
-        
+
         data.Clear();
-        
+
         // Add the starting data.
         foreach (var @char in @string)
             data.Add(@char);
-        
+
         var characterDiffCallback = new CharacterDiffCallback();
 
         // Calculate the difference between the old datasource and the new datasource.

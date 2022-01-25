@@ -1,17 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
-	<LangVersion>10</LangVersion>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>netstandard2.1</TargetFramework>
+		<LangVersion>10</LangVersion>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="MvvmCross" Version="8.0.2" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="MvvmCross" Version="8.0.2" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\DifferenceUtility.Net\DifferenceUtility.Net.csproj" />
-    <ProjectReference Include="..\Sample.Assets\Sample.Assets.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\DifferenceUtility.Net\DifferenceUtility.Net.csproj" />
+		<ProjectReference Include="..\Sample.Assets\Sample.Assets.csproj" />
+	</ItemGroup>
 
 </Project>
