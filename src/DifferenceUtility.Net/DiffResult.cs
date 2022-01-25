@@ -11,6 +11,7 @@ namespace DifferenceUtility.Net;
 
 /// <summary>
 /// <para>This class holds the information about the result of a <see cref="DiffUtil.CalculateDiff{T,T}" /> call.</para>
+/// 
 /// <para>You can consume updates in a DiffResult via <see cref="DispatchUpdatesTo(ObservableCollection{TSource})" />.</para>
 /// </summary>
 public class DiffResult<TSource, TDestination>
@@ -173,7 +174,7 @@ public class DiffResult<TSource, TDestination>
     }
 
     /// <summary>
-    /// Gets the calculated path for applying the diff result. See <see cref="DiffOperation" /> for decoding.
+    /// Creates a new array containing the calculated path for applying the diff result. See <see cref="DiffOperation" /> for decoding.
     /// </summary>
     public int[] GetPath()
     {
