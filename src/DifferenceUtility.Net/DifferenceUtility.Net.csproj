@@ -10,13 +10,14 @@
 		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
 
 		<Authors>Lewis Bennett</Authors>
-		<Description>A simple library, similar to Android's DiffUtil, for .NET collections.</Description>
+		<Description>A library for .NET handles the calculation and dispatch of the shortest possible path to convert one collection to another, resulting in a quick and smooth transition.</Description>
 		<PackageProjectUrl>https://github.com/lewisbennett/difference-utility-net</PackageProjectUrl>
 		<PackageLicenseFile>LICENSE</PackageLicenseFile>
 		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
 		<RepositoryType>git</RepositoryType>
 		<RepositoryUrl>https://github.com/lewisbennett/difference-utility-net</RepositoryUrl>
 		<PackageIcon>icon.png</PackageIcon>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<NoWarn>1701;1702;1591;1573</NoWarn>
 	</PropertyGroup>
 
@@ -43,6 +44,10 @@
 			<PackagePath></PackagePath>
 		</None>
 		<None Include="..\..\LICENSE">
+			<Pack>True</Pack>
+			<PackagePath></PackagePath>
+		</None>
+		<None Include="..\..\README.md">
 			<Pack>True</Pack>
 			<PackagePath></PackagePath>
 		</None>
