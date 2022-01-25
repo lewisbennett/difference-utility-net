@@ -1,6 +1,6 @@
-﻿using MvvmCross.DroidX.RecyclerView.ItemTemplates;
+﻿using System;
+using MvvmCross.DroidX.RecyclerView.ItemTemplates;
 using Sample.MvvmCross.Core;
-using System;
 
 namespace Sample.MvvmCross.Droid;
 

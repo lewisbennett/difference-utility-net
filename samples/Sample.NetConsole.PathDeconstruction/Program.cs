@@ -56,31 +56,31 @@ foreach (var payload in diffPath)
     if ((payload & DiffOperation.Insert) != 0)
     {
         currentY++;
-        
+
         // X coordinate is encoded if the payload has the Move flag.
         if ((payload & DiffOperation.Move) != 0)
             Console.WriteLine($"+ {destination[currentY]}");
-        
+
         else
             Console.WriteLine($"+ {destination[payload >> DiffOperation.Offset]}");
-        
+
         continue;
     }
 
     if ((payload & DiffOperation.Remove) != 0)
     {
         currentX++;
-        
+
         // Y coordinate is encoded if the payload has the Move flag.
         if ((payload & DiffOperation.Move) != 0)
             Console.WriteLine($"- {source[currentX]}");
-        
+
         else
             Console.WriteLine($"- {source[payload >> DiffOperation.Offset]}");
-        
+
         continue;
     }
-    
+
     // If neither insert nor remove, increment both coordinates.
     currentX++;
     currentY++;
@@ -88,10 +88,10 @@ foreach (var payload in diffPath)
     // Both if statements do the same job.
     if ((payload & DiffOperation.Update) != 0)
         Console.WriteLine($"~ {source[currentX]}");
-    
+
     else
         Console.WriteLine($"  {source[currentX]}");
-    
+
     // if ((payload & DiffOperation.Update) != 0)
     //     Console.WriteLine($"~ {destination[currentY]}");
     //

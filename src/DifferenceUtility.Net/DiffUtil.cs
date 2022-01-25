@@ -9,33 +9,55 @@ using DifferenceUtility.Net.Helper;
 namespace DifferenceUtility.Net;
 
 /// <summary>
-/// <para>DiffUtil is a utility class that can calculate the difference between two collections and output a set of update operations that converts
-/// the first collection into the second one.</para>
-/// 
-/// <para>It can be used to calculate updates for an <see cref="ObservableCollection{T}" />, and makes use of Insert, Move, Remove and Update operations
-/// to apply the changes in a fluid manner, ideal for UI based applications.</para>
-/// 
-/// <para>DiffUtil uses  Eugene W. Myers' difference algorithm to calculate the minimal number of updates to convert one collection to into another. Myers'
-/// algorithm does not handle items that are moved so DiffUtil runs a second pass on the result to detect them.</para>
-///
-/// <para>Note that DiffUtil requires the collection to not mutate while in use. This generally means that both of the collections, and their elements,
-/// (or at least the properties of elements using in diffing) should not be modified directly. Instead, new collections should be provided any time
-/// content changes. It is common for collections passed to DiffUtil to share elements that have not mutated, so it is not strictly required to
-/// reload all data to use DiffUtil.</para>
-/// 
-/// <para>If the collections are large, this operations may take significant time, so you are advised to run this on a background thread, get the
-/// <see cref="DiffResult{TOld,TNew}" />, then apply it on the main thread.</para>
+///     <para>
+///         DiffUtil is a utility class that can calculate the difference between two collections and output a set of
+///         update operations that converts
+///         the first collection into the second one.
+///     </para>
+///     <para>
+///         It can be used to calculate updates for an <see cref="ObservableCollection{T}" />, and makes use of Insert,
+///         Move, Remove and Update operations
+///         to apply the changes in a fluid manner, ideal for UI based applications.
+///     </para>
+///     <para>
+///         DiffUtil uses  Eugene W. Myers' difference algorithm to calculate the minimal number of updates to convert one
+///         collection to into another. Myers'
+///         algorithm does not handle items that are moved so DiffUtil runs a second pass on the result to detect them.
+///     </para>
+///     <para>
+///         Note that DiffUtil requires the collection to not mutate while in use. This generally means that both of the
+///         collections, and their elements,
+///         (or at least the properties of elements using in diffing) should not be modified directly. Instead, new
+///         collections should be provided any time
+///         content changes. It is common for collections passed to DiffUtil to share elements that have not mutated, so it
+///         is not strictly required to
+///         reload all data to use DiffUtil.
+///     </para>
+///     <para>
+///         If the collections are large, this operations may take significant time, so you are advised to run this on a
+///         background thread, get the
+///         <see cref="DiffResult{TOld,TNew}" />, then apply it on the main thread.
+///     </para>
 /// </summary>
 public static class DiffUtil
 {
     #region Public Methods
     /// <summary>
-    /// <para>Calculates a set of modification operations that can convert <paramref name="sourceCollection" /> into <paramref name="destinationCollection" />.</para>
-    /// <para>If your source and destination collections are sorted by the same constraint and items never move (swap positions), you can disable move detection.</para>
+    ///     <para>
+    ///         Calculates a set of modification operations that can convert <paramref name="sourceCollection" /> into
+    ///         <paramref name="destinationCollection" />.
+    ///     </para>
+    ///     <para>
+    ///         If your source and destination collections are sorted by the same constraint and items never move (swap
+    ///         positions), you can disable move detection.
+    ///     </para>
     /// </summary>
     /// <param name="diffCallback">A callback for calculating the difference between the provided collections.</param>
     /// <param name="detectMoves"><c>true</c> if DiffUtil should try to detect moved items, <c>false</c> otherwise.</param>
-    /// <returns>A <see cref="DiffResult{T, T}" /> that contains the information about the edit sequence to convert the old collection into the new collection.</returns>
+    /// <returns>
+    ///     A <see cref="DiffResult{T, T}" /> that contains the information about the edit sequence to convert the old
+    ///     collection into the new collection.
+    /// </returns>
     public static DiffResult<TSource, TDestination> CalculateDiff<TSource, TDestination>(
         [NotNull] IEnumerable<TSource> sourceCollection,
         [NotNull] IEnumerable<TDestination> destinationCollection,

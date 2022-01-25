@@ -10,9 +10,8 @@ using DifferenceUtility.Net.Helper;
 namespace DifferenceUtility.Net;
 
 /// <summary>
-/// <para>This class holds the information about the result of a <see cref="DiffUtil.CalculateDiff{T,T}" /> call.</para>
-/// 
-/// <para>You can consume updates in a DiffResult via <see cref="DispatchUpdatesTo(ObservableCollection{TSource})" />.</para>
+///     <para>This class holds the information about the result of a <see cref="DiffUtil.CalculateDiff{T,T}" /> call.</para>
+///     <para>You can consume updates in a DiffResult via <see cref="DispatchUpdatesTo(ObservableCollection{TSource})" />.</para>
 /// </summary>
 public class DiffResult<TSource, TDestination>
 {
@@ -28,9 +27,12 @@ public class DiffResult<TSource, TDestination>
 
     #region Public Methods
     /// <summary>
-    /// Dispatches the update events to the given collection.
+    ///     Dispatches the update events to the given collection.
     /// </summary>
-    /// <param name="observableCollection">A collection which is displaying the old collection, and will start displaying the new collection.</param>
+    /// <param name="observableCollection">
+    ///     A collection which is displaying the old collection, and will start displaying the
+    ///     new collection.
+    /// </param>
     public void DispatchUpdatesTo([NotNull] ObservableCollection<TSource> observableCollection)
     {
         if (observableCollection is null)
@@ -43,8 +45,8 @@ public class DiffResult<TSource, TDestination>
     }
 
     /// <summary>
-    /// <para>Dispatches update operations to the given callback.</para>
-    /// <para>These updates are atomic such that the first update call affects every update call that comes after it.</para>
+    ///     <para>Dispatches update operations to the given callback.</para>
+    ///     <para>These updates are atomic such that the first update call affects every update call that comes after it.</para>
     /// </summary>
     /// <param name="updateCallback">The callback to receive the update operations.</param>
     public void DispatchUpdatesTo([NotNull] ICollectionUpdateCallback updateCallback)
@@ -174,7 +176,8 @@ public class DiffResult<TSource, TDestination>
     }
 
     /// <summary>
-    /// Creates a new array containing the calculated path for applying the diff result. See <see cref="DiffOperation" /> for decoding.
+    ///     Creates a new array containing the calculated path for applying the diff result. See <see cref="DiffOperation" />
+    ///     for decoding.
     /// </summary>
     public int[] GetPath()
     {
@@ -313,7 +316,7 @@ public class DiffResult<TSource, TDestination>
 
     #region Internal Static Methods
     /// <summary>
-    /// Gets an empty <see cref="DiffResult{TOld,TNew}" /> that takes zero action when applied.
+    ///     Gets an empty <see cref="DiffResult{TOld,TNew}" /> that takes zero action when applied.
     /// </summary>
     internal static DiffResult<TSource, TDestination> Empty()
     {
@@ -321,7 +324,7 @@ public class DiffResult<TSource, TDestination>
     }
 
     /// <summary>
-    /// Gets a configured <see cref="DiffResult{TOld,TNew}" /> that ignores diagonals.
+    ///     Gets a configured <see cref="DiffResult{TOld,TNew}" /> that ignores diagonals.
     /// </summary>
     internal static DiffResult<TSource, TDestination> NoDiagonals(IDiffCallback<TSource, TDestination> diffCallback, TSource[] oldArray, TDestination[] newArray)
     {

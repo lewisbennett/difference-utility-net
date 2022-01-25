@@ -13,8 +13,9 @@ public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
 
     #region Public Methods
     /// <summary>
-    /// <see cref="BatchingCollectionUpdateCallback" /> holds onto the last event to see if it can be merged with the next one.
-    /// When the stream of events finishes, you should call this method to dispatch the last event.
+    ///     <see cref="BatchingCollectionUpdateCallback" /> holds onto the last event to see if it can be merged with the next
+    ///     one.
+    ///     When the stream of events finishes, you should call this method to dispatch the last event.
     /// </summary>
     public void DispatchLastEvent()
     {
