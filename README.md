@@ -37,7 +37,8 @@ Calling `DiffUtil.CalculateDiff` will return a `DiffResult` object which contain
 * [MvvmCross Android project](samples/Sample.MvvmCross.Droid)
 * [Console characters project](samples/Sample.NetConsole.Characters): A console project that converts one string to another.
 * [Console people project](samples/Sample.NetConsole.People): A console project that uses simple user/people objects.
-* [Console reliability project](Sample.NetConsole.Reliability): A console project that generates random strings, along with pre-made ones, to stress test the system.
+* [Console reliability project](samples/Sample.NetConsole.Reliability): A console project that generates random strings, along with pre-made ones, to stress test the system.
+* [Console path deconstruction project](samples/Sample.NetConsole.PathDeconstruction): A console project that deconstructs the calculated diff path to visually show the insert, remove, and update steps.
 
 ## Benchmarking
 
