@@ -199,18 +199,16 @@ public class DiffResult<TSource, TDestination>
     private void CreateXOffset(int from, bool increment, int operationId)
     {
         var offset = increment ? 1 : -1;
-
-        var offsets = _offsets.ToArray();
-
-        for (var i = 0; i < offsets.Length; i++)
+        
+        for (var i = 0; i < _offsets.Count; i++)
         {
-            var queryOffset = offsets[i];
+            var queryOffset = _offsets.Values[i];
 
             // The provided offset should be applied to offsets that are positioned after the provided 'from' position.
-            if (queryOffset.Value.From > from)
-                _offsets[queryOffset.Key] = (queryOffset.Value.From + offset, queryOffset.Value.Offset);
+            if (queryOffset.From > from)
+                _offsets[_offsets.Keys[i]] = (queryOffset.From + offset, queryOffset.Offset);
         }
-
+        
         // Finally, create the offset.
         _offsets[operationId] = (from, offset);
     }
