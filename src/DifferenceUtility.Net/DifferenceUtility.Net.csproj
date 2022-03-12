@@ -2,15 +2,13 @@
 
 	<PropertyGroup>
 		<GitInfoReportImportance Condition="'$(Configuration)' == 'Release'">high</GitInfoReportImportance>
-		<TargetFramework>netstandard2.1</TargetFramework>
+		<TargetFrameworks>netstandard2.1;net6.0</TargetFrameworks>
 		<LangVersion>10</LangVersion>
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-
 		<Authors>Lewis Bennett</Authors>
-		<Description>A library for .NET handles the calculation and dispatch of the shortest possible path to convert one collection to another, resulting in a quick and smooth transition.</Description>
+		<Description>A library that handles the calculation and dispatch of the shortest possible path to convert one collection to another, resulting in a quick and smooth transition.</Description>
 		<PackageProjectUrl>https://github.com/lewisbennett/difference-utility-net</PackageProjectUrl>
 		<PackageLicenseFile>LICENSE</PackageLicenseFile>
 		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
@@ -18,13 +16,9 @@
 		<RepositoryUrl>https://github.com/lewisbennett/difference-utility-net</RepositoryUrl>
 		<PackageIcon>icon.png</PackageIcon>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<NoWarn>1701;1702;1591;1573</NoWarn>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 	</PropertyGroup>
-
-	<PropertyGroup Condition="$(GitBranch) == 'develop' or $(GitBranch) == 'master'">
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-	</PropertyGroup>
-
+	
 	<PropertyGroup Condition=" '$(Configuration)'=='Debug' ">
 		<DebugType>full</DebugType>
 		<DebugSymbols>true</DebugSymbols>
@@ -33,28 +27,21 @@
 	<PropertyGroup Condition=" '$(Configuration)'=='Release' ">
 		<DebugType>pdbonly</DebugType>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<DocumentationFile>DifferenceUtility.Net.xml</DocumentationFile>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Compile Include="CollectionUpdateCallbacks\BatchingCollectionUpdateCallback.cs" />
-		<Compile Include="CollectionUpdateCallbacks\ObservableCollectionUpdateCallback.cs" />
 		<None Include="..\..\assets\icon.png">
 			<Pack>True</Pack>
-			<PackagePath></PackagePath>
+			<PackagePath>.</PackagePath>
 		</None>
 		<None Include="..\..\LICENSE">
 			<Pack>True</Pack>
-			<PackagePath></PackagePath>
+			<PackagePath>.</PackagePath>
 		</None>
 		<None Include="..\..\README.md">
 			<Pack>True</Pack>
-			<PackagePath></PackagePath>
+			<PackagePath>.</PackagePath>
 		</None>
-		<Compile Include="*.cs" />
-		<Compile Include="Base\**\*.cs" />
-		<Compile Include="Helper\DiffOperation.cs" />
-		<Compile Include="Instructions\**\*.cs" />
 		<PackageReference Include="GitInfo" Version="2.2.0">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -63,11 +50,13 @@
 
 	<Target Name="SetNuspecProperties" BeforeTargets="GenerateNuspec;_GetProjectVersion" DependsOnTargets="GitVersion">
 		<PropertyGroup>
-			<Version Condition="$(GitBranch) == 'master'">$(GitBaseTag)</Version>
-			<Version Condition="$(GitBranch) == 'develop'">$(GitBaseTag)-alpha-$(GitCommit)</Version>
+			<Version Condition="$(GitBranch) == 'master'">$(GitBaseTag).$(GitCommits)</Version>
+			<Version Condition="$(GitBranch) == 'develop'">$(GitBaseTag).$(GitCommits)-alpha</Version>
+			<Version Condition="$(GitBranch) != 'develop' and $(GitBranch) != 'master'">$(GitBaseTag).$(GitCommits)-alpha-$(GitBranch)</Version>
 
-			<PackageVersion Condition="$(GitBranch) == 'master'">$(GitBaseTag)</PackageVersion>
-			<PackageVersion Condition="$(GitBranch) == 'develop'">$(GitBaseTag)-alpha-$(GitCommit)</PackageVersion>
+			<PackageVersion Condition="$(GitBranch) == 'master'">$(GitBaseTag).$(GitCommits)</PackageVersion>
+			<PackageVersion Condition="$(GitBranch) == 'develop'">$(GitBaseTag).$(GitCommits)-alpha</PackageVersion>
+			<PackageVersion Condition="$(GitBranch) != 'develop' and $(GitBranch) != 'master'">$(GitBaseTag).$(GitCommits)-alpha-$(GitBranch)</PackageVersion>
 		</PropertyGroup>
 	</Target>
 

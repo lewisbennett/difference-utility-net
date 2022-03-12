@@ -2,14 +2,13 @@
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFramework>net5.0</TargetFramework>
+		<TargetFramework>net6.0</TargetFramework>
 		<LangVersion>10</LangVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="BenchmarkDotNet" Version="0.13.1" />
 		<ProjectReference Include="..\DifferenceUtility.Net\DifferenceUtility.Net.csproj" />
-		<!-- <ProjectReference Include="..\DifferenceUtility.Net\DifferenceUtility.Net.csproj" PrivateAssets="All" /> -->
 	</ItemGroup>
 
 	<ItemGroup>

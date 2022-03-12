@@ -349,8 +349,5 @@ MigrationBackup/
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
 
-# Documentation XML for project
-src/DifferenceUtility.Net/DifferenceUtility.Net.xml
-
 # JetBrains IDE assets
 .idea
