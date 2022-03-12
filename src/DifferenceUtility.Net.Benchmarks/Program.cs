@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
 using DifferenceUtility.Net.Benchmarks.Data;
+#if DEBUG
+using BenchmarkDotNet.Configs;
+#endif
 
 namespace DifferenceUtility.Net.Benchmarks;
 
@@ -30,8 +32,8 @@ public static class Program
         BenchmarkRunner.Run<CalculateDiffBenchmarks>(new DebugInProcessConfig());
         BenchmarkRunner.Run<DifferenceUtilityBenchmarks>(new DebugInProcessConfig());
 #else
-            // BenchmarkRunner.Run<CalculateDiffBenchmarks>();
-            BenchmarkRunner.Run<DifferenceUtilityBenchmarks>();
+        // BenchmarkRunner.Run<CalculateDiffBenchmarks>();
+        BenchmarkRunner.Run<DifferenceUtilityBenchmarks>();
 #endif
     }
     #endregion

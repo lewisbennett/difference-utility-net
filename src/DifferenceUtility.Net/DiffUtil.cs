@@ -11,32 +11,27 @@ namespace DifferenceUtility.Net;
 /// <summary>
 ///     <para>
 ///         DiffUtil is a utility class that can calculate the difference between two collections and output a set of
-///         update operations that converts
-///         the first collection into the second one.
+///         update operations that converts the first collection into the second one.
 ///     </para>
 ///     <para>
 ///         It can be used to calculate updates for an <see cref="ObservableCollection{T}" />, and makes use of Insert,
-///         Move, Remove and Update operations
-///         to apply the changes in a fluid manner, ideal for UI based applications.
+///         Move, Remove and Update operations to apply the changes in a fluid manner, ideal for UI based applications.
 ///     </para>
 ///     <para>
 ///         DiffUtil uses  Eugene W. Myers' difference algorithm to calculate the minimal number of updates to convert one
-///         collection to into another. Myers'
-///         algorithm does not handle items that are moved so DiffUtil runs a second pass on the result to detect them.
+///         collection to into another. Myers' algorithm does not handle items that are moved so DiffUtil runs a second
+///         pass on the result to detect them.
 ///     </para>
 ///     <para>
 ///         Note that DiffUtil requires the collection to not mutate while in use. This generally means that both of the
-///         collections, and their elements,
-///         (or at least the properties of elements using in diffing) should not be modified directly. Instead, new
-///         collections should be provided any time
-///         content changes. It is common for collections passed to DiffUtil to share elements that have not mutated, so it
-///         is not strictly required to
+///         collections, and their elements, (or at least the properties of elements using in diffing) should not be
+///         modified directly. Instead, new collections should be provided any time content changes. It is common for
+///         collections passed to DiffUtil to share elements that have not mutated, so it is not strictly required to
 ///         reload all data to use DiffUtil.
 ///     </para>
 ///     <para>
 ///         If the collections are large, this operations may take significant time, so you are advised to run this on a
-///         background thread, get the
-///         <see cref="DiffResult{TOld,TNew}" />, then apply it on the main thread.
+///         background thread, get the <see cref="DiffResult{TOld,TNew}" />, then apply it on the main thread.
 ///     </para>
 /// </summary>
 public static class DiffUtil
@@ -52,6 +47,8 @@ public static class DiffUtil
     ///         positions), you can disable move detection.
     ///     </para>
     /// </summary>
+    /// <param name="sourceCollection">The source collection containing the current data.</param>
+    /// <param name="destinationCollection">The destination collection containing the new data.</param>
     /// <param name="diffCallback">A callback for calculating the difference between the provided collections.</param>
     /// <param name="detectMoves"><c>true</c> if DiffUtil should try to detect moved items, <c>false</c> otherwise.</param>
     /// <returns>
@@ -87,6 +84,7 @@ public static class DiffUtil
 
         var longestCommonSubsequenceLength = 0;
 
+        // Loop through the entire diff matrix to find matching items.
         for (var globalIndex = 0; globalIndex < sourceArray.Length * destinationArray.Length; globalIndex++)
         {
             if (!diffCallback.AreItemsTheSame(sourceArray[globalIndex / destinationArray.Length], destinationArray[globalIndex % destinationArray.Length]))
@@ -105,12 +103,15 @@ public static class DiffUtil
                 continue;
             }
 
+            // The score represents the number of diagonals that exist before the current
+            // diagonal, that can also lead to the current diagonal when the path is followed.
             var score = 1;
 
             for (var diagonalIndex = 0; diagonalIndex < diagonals.Count; diagonalIndex++)
             {
                 var diagonal = diagonals[diagonalIndex];
 
+                // Query the diagonal's global index to see if it could possibly lead to the current diagonal.
                 if (diagonal.GlobalIndex < globalIndex - destinationArray.Length && diagonal.GlobalIndex % destinationArray.Length < globalIndex % destinationArray.Length)
                     score = Math.Max(score, diagonal.Score + 1);
             }
@@ -144,11 +145,15 @@ public static class DiffUtil
                 continue;
 
             var diagonalX = diagonal.GlobalIndex / destinationArray.Length;
+            
+            if (diagonalX > currentX)
+                continue;
+            
             var diagonalY = diagonal.GlobalIndex % destinationArray.Length;
 
-            if (diagonalX > currentX || diagonalY > currentY)
+            if (diagonalY > currentY)
                 continue;
-
+            
             // Calculate the path between the current coordinates and the diagonal.
             while (currentY > diagonalY)
             {

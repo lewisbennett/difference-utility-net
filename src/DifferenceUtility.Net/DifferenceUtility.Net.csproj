@@ -18,7 +18,7 @@
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 	</PropertyGroup>
-	
+
 	<PropertyGroup Condition=" '$(Configuration)'=='Debug' ">
 		<DebugType>full</DebugType>
 		<DebugSymbols>true</DebugSymbols>

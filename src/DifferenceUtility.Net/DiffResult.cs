@@ -30,8 +30,7 @@ public class DiffResult<TSource, TDestination>
     ///     Dispatches the update events to the given collection.
     /// </summary>
     /// <param name="observableCollection">
-    ///     A collection which is displaying the old collection, and will start displaying the
-    ///     new collection.
+    ///     A collection which is displaying the old collection, and will start displaying the new collection.
     /// </param>
     public void DispatchUpdatesTo([NotNull] ObservableCollection<TSource> observableCollection)
     {

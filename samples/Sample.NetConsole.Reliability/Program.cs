@@ -1,4 +1,7 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using DifferenceUtility.Net;
 using Sample.NetConsole.Reliability;
 
@@ -42,12 +45,12 @@ var finalStrings = new List<string>(strings
         .Aggregate(string.Empty, (current, @char) => current + @char)));
 
 const int stringLengthMin = 1;
-const int stringLengthMax = 50;
+const int stringLengthMax = 100;
 
 var random = new Random();
 
 // Simple loop to generate some random sequences that we can use for additional testing.
-for (var i = 0; i < 500; i++)
+for (var i = 0; i < 1000; i++)
 {
     var stringBuilder = new HashSet<char>();
 
