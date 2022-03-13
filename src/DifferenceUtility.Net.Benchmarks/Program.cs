@@ -26,7 +26,7 @@ public static class Program
     /// </summary>
     public static void Main()
     {
-        GenerateAllBenchmarkData();
+        // GenerateAllBenchmarkData();
 
 #if DEBUG
         BenchmarkRunner.Run<CalculateDiffBenchmarks>(new DebugInProcessConfig());

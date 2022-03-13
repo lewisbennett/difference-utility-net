@@ -37,10 +37,8 @@ public class DiffResult<TSource, TDestination>
         if (observableCollection is null)
             throw new ArgumentNullException(nameof(observableCollection));
 
-        if (IsEmpty())
-            return;
-
-        DispatchUpdatesTo(new ObservableCollectionUpdateCallback<TSource, TDestination>(_diffCallback, observableCollection, _destinationArray));
+        if (!IsEmpty())
+            DispatchUpdatesToCallback(new ObservableCollectionUpdateCallback<TSource, TDestination>(_diffCallback, observableCollection, _destinationArray));
     }
 
     /// <summary>
@@ -53,9 +51,51 @@ public class DiffResult<TSource, TDestination>
         if (updateCallback is null)
             throw new ArgumentNullException(nameof(updateCallback));
 
-        if (IsEmpty())
-            return;
+        if (!IsEmpty())
+            DispatchUpdatesToCallback(updateCallback);
+    }
 
+    /// <summary>
+    ///     Creates a new array containing the calculated path for applying the diff result. See <see cref="DiffOperation" />
+    ///     for decoding.
+    /// </summary>
+    public int[] GetPath()
+    {
+        return _path.ToArray();
+    }
+    #endregion
+
+    #region Constructors
+    internal DiffResult(IDiffCallback<TSource, TDestination> diffCallback, TSource[] sourceArray, TDestination[] destinationArray, int[] path, int moveCount = 0)
+    {
+        _destinationArray = destinationArray;
+        _diffCallback = diffCallback;
+        _moveCount = moveCount;
+        _path = path;
+        _sourceArray = sourceArray;
+    }
+    #endregion
+
+    #region Private Methods
+    private void CreateXOffset(int from, bool increment, int operationId)
+    {
+        var offset = increment ? 1 : -1;
+        
+        for (var i = 0; i < _offsets.Count; i++)
+        {
+            var queryOffset = _offsets.Values[i];
+
+            // The provided offset should be applied to offsets that are positioned after the provided 'from' position.
+            if (queryOffset.From > from)
+                _offsets[_offsets.Keys[i]] = (queryOffset.From + offset, queryOffset.Offset);
+        }
+        
+        // Finally, create the offset.
+        _offsets[operationId] = (from, offset);
+    }
+
+    private void DispatchUpdatesToCallback(ICollectionUpdateCallback updateCallback)
+    {
         if (updateCallback is not BatchingCollectionUpdateCallback batchingCallback)
             batchingCallback = new BatchingCollectionUpdateCallback(updateCallback);
 
@@ -173,49 +213,10 @@ public class DiffResult<TSource, TDestination>
         _offsets.Clear();
         _postponedOperations?.Clear();
     }
-
-    /// <summary>
-    ///     Creates a new array containing the calculated path for applying the diff result. See <see cref="DiffOperation" />
-    ///     for decoding.
-    /// </summary>
-    public int[] GetPath()
-    {
-        return _path.ToArray();
-    }
-    #endregion
-
-    #region Constructors
-    internal DiffResult(IDiffCallback<TSource, TDestination> diffCallback, TSource[] sourceArray, TDestination[] destinationArray, int[] path, int moveCount = 0)
-    {
-        _destinationArray = destinationArray;
-        _diffCallback = diffCallback;
-        _moveCount = moveCount;
-        _path = path;
-        _sourceArray = sourceArray;
-    }
-    #endregion
-
-    #region Private Methods
-    private void CreateXOffset(int from, bool increment, int operationId)
-    {
-        var offset = increment ? 1 : -1;
-        
-        for (var i = 0; i < _offsets.Count; i++)
-        {
-            var queryOffset = _offsets.Values[i];
-
-            // The provided offset should be applied to offsets that are positioned after the provided 'from' position.
-            if (queryOffset.From > from)
-                _offsets[_offsets.Keys[i]] = (queryOffset.From + offset, queryOffset.Offset);
-        }
-        
-        // Finally, create the offset.
-        _offsets[operationId] = (from, offset);
-    }
-
+    
     private bool IsEmpty()
     {
-        return _path is null || _path.Length == 0 || _diffCallback is null || _sourceArray is null || _destinationArray is null || _sourceArray.Length == 0 && _destinationArray.Length == 0;
+        return _path is not { Length: > 0 } || _diffCallback is null || _sourceArray is not { Length: > 0 } || _destinationArray is not { Length: > 0 };
     }
 
     private int OffsetX(int x)
@@ -224,9 +225,9 @@ public class DiffResult<TSource, TDestination>
             return x;
 
         var offsets = _offsets.Values;
-
+        
         var processed = new List<int>(offsets.Count);
-
+        
         for (var i = 0; i < offsets.Count; i++)
         {
             if (processed.Contains(i))
@@ -252,7 +253,7 @@ public class DiffResult<TSource, TDestination>
     {
         // Postponed operations will be null if there are no moves in the provided path.
         // Y will also not change if there are no postponed updates.
-        if (_postponedOperations is null || _postponedOperations.Count == 0)
+        if (_postponedOperations is not { Count: > 0 })
             return y;
 
         var processed = new List<int>(_postponedOperations.Count);
@@ -267,12 +268,17 @@ public class DiffResult<TSource, TDestination>
 
             var postponedOperation = _postponedOperations[i];
 
+            if (postponedOperation.Y == y)
+                continue;
+            
             var offsetOperationX = OffsetX(postponedOperation.X);
 
-            if (postponedOperation.Y < y && offsetOperationX >= y + yOffset)
+            var yWithOffset = y + yOffset;
+            
+            if (postponedOperation.Y < y && offsetOperationX >= yWithOffset)
                 yOffset--;
 
-            else if (postponedOperation.Y > y && offsetOperationX <= y + yOffset)
+            else if (postponedOperation.Y > y && offsetOperationX <= yWithOffset)
                 yOffset++;
 
             else
