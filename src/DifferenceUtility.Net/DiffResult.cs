@@ -21,7 +21,7 @@ public class DiffResult<TSource, TDestination>
     private readonly int _moveCount;
     private SortedList<int, (int From, int Offset)> _offsets;
     private readonly int[] _path;
-    private List<(int X, int Y, int OperationID)> _postponedOperations;
+    private List<(int X, int Y, int OperationId)> _postponedOperations;
     private readonly TSource[] _sourceArray;
     #endregion
 
@@ -80,7 +80,7 @@ public class DiffResult<TSource, TDestination>
     private void CreateXOffset(int from, bool increment, int operationId)
     {
         var offset = increment ? 1 : -1;
-        
+
         for (var i = 0; i < _offsets.Count; i++)
         {
             var queryOffset = _offsets.Values[i];
@@ -89,7 +89,7 @@ public class DiffResult<TSource, TDestination>
             if (queryOffset.From > from)
                 _offsets[_offsets.Keys[i]] = (queryOffset.From + offset, queryOffset.Offset);
         }
-        
+
         // Finally, create the offset.
         _offsets[operationId] = (from, offset);
     }
@@ -113,7 +113,7 @@ public class DiffResult<TSource, TDestination>
         {
             var operation = _path[operationId];
 
-            (int X, int Y, int OperationID) postponedOperation;
+            (int X, int Y, int OperationId) postponedOperation;
 
             // Vertical movement.
             if ((operation & DiffOperation.Insert) != 0)
@@ -198,12 +198,12 @@ public class DiffResult<TSource, TDestination>
             // Create the offsets as a result of the move operation.
             if (offsetPostponedX > offsetPostponedY)
             {
-                CreateXOffset(offsetPostponedY, true, postponedOperation.OperationID);
+                CreateXOffset(offsetPostponedY, true, postponedOperation.OperationId);
                 CreateXOffset(offsetPostponedX + 1, false, operationId);
             }
             else if (offsetPostponedX < offsetPostponedY)
             {
-                CreateXOffset(offsetPostponedX, false, postponedOperation.OperationID);
+                CreateXOffset(offsetPostponedX, false, postponedOperation.OperationId);
                 CreateXOffset(offsetPostponedY, true, operationId);
             }
         }
@@ -213,7 +213,7 @@ public class DiffResult<TSource, TDestination>
         _offsets.Clear();
         _postponedOperations?.Clear();
     }
-    
+
     private bool IsEmpty()
     {
         return _path is not { Length: > 0 } || _diffCallback is null || _sourceArray is not { Length: > 0 } || _destinationArray is not { Length: > 0 };
@@ -225,9 +225,9 @@ public class DiffResult<TSource, TDestination>
             return x;
 
         var offsets = _offsets.Values;
-        
+
         var processed = new List<int>(offsets.Count);
-        
+
         for (var i = 0; i < offsets.Count; i++)
         {
             if (processed.Contains(i))
@@ -270,11 +270,11 @@ public class DiffResult<TSource, TDestination>
 
             if (postponedOperation.Y == y)
                 continue;
-            
+
             var offsetOperationX = OffsetX(postponedOperation.X);
 
             var yWithOffset = y + yOffset;
-            
+
             if (postponedOperation.Y < y && offsetOperationX >= yWithOffset)
                 yOffset--;
 

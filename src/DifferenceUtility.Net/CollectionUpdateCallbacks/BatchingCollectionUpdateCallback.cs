@@ -4,6 +4,10 @@ using DifferenceUtility.Net.Base;
 
 namespace DifferenceUtility.Net.CollectionUpdateCallbacks;
 
+/// <summary>
+///     An <see cref="ICollectionUpdateCallback" /> implementation that batches operation requests and releases them to a
+///     wrapped callback.
+/// </summary>
 public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
 {
     #region Fields
@@ -121,6 +125,10 @@ public class BatchingCollectionUpdateCallback : ICollectionUpdateCallback
     #endregion
 
     #region Constructors
+    /// <summary>
+    ///     Creates a new <see cref="BatchingCollectionUpdateCallback" />.
+    /// </summary>
+    /// <param name="callback">The callback to dispatch batched operations to.</param>
     public BatchingCollectionUpdateCallback([NotNull] ICollectionUpdateCallback callback)
     {
         _wrappedCallback = callback;

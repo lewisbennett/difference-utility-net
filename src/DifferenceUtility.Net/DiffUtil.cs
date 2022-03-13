@@ -145,15 +145,15 @@ public static class DiffUtil
                 continue;
 
             var diagonalX = diagonal.GlobalIndex / destinationArray.Length;
-            
+
             if (diagonalX > currentX)
                 continue;
-            
+
             var diagonalY = diagonal.GlobalIndex % destinationArray.Length;
 
             if (diagonalY > currentY)
                 continue;
-            
+
             // Calculate the path between the current coordinates and the diagonal.
             while (currentY > diagonalY)
             {

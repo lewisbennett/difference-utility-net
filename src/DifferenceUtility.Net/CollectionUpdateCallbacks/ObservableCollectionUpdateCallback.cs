@@ -3,6 +3,10 @@ using DifferenceUtility.Net.Base;
 
 namespace DifferenceUtility.Net.CollectionUpdateCallbacks;
 
+/// <summary>
+///     Provides an <see cref="ICollectionUpdateCallback" /> implementation for interacting with
+///     <see cref="ObservableCollection{T}" />.
+/// </summary>
 public class ObservableCollectionUpdateCallback<TSource, TDestination> : ICollectionUpdateCallback
 {
     #region Fields
@@ -51,6 +55,12 @@ public class ObservableCollectionUpdateCallback<TSource, TDestination> : ICollec
     #endregion
 
     #region Constructors
+    /// <summary>
+    ///     Creates a new <see cref="ObservableCollectionUpdateCallback{TSource,TDestination}" />.
+    /// </summary>
+    /// <param name="diffCallback">The diff callback implementation for the current data set.</param>
+    /// <param name="observableCollection">The collection to dispatch the update operations to.</param>
+    /// <param name="destinationArray">The destination data source.</param>
     public ObservableCollectionUpdateCallback(IDiffCallback<TSource, TDestination> diffCallback, ObservableCollection<TSource> observableCollection, TDestination[] destinationArray)
     {
         _destinationArray = destinationArray;

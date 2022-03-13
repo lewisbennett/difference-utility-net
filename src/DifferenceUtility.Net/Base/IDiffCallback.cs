@@ -1,5 +1,8 @@
 ﻿namespace DifferenceUtility.Net.Base;
 
+/// <summary>
+///     An interface that allows the utility to interact with data types.
+/// </summary>
 public interface IDiffCallback<TSource, in TDestination>
 {
     #region Methods
