@@ -216,7 +216,13 @@ public class DiffResult<TSource, TDestination>
 
     private bool IsEmpty()
     {
-        return _path is not { Length: > 0 } || _diffCallback is null || _sourceArray is not { Length: > 0 } || _destinationArray is not { Length: > 0 };
+        // Path, diff callback, source array, and destination array cannot be null however,
+        // the source or destination arrays can be empty, as long as they're not both empty.
+        return _path is not { Length: > 0 }
+            || _diffCallback is null
+            || _sourceArray is null
+            || _destinationArray is null
+            || _sourceArray.Length == 0 && _destinationArray.Length == 0;
     }
 
     private int OffsetX(int x)
