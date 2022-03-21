@@ -19,10 +19,11 @@ public class DiffResult<TSource, TDestination>
     private readonly TDestination[] _destinationArray;
     private readonly IDiffCallback<TSource, TDestination> _diffCallback;
     private readonly int _moveCount;
-    private SortedList<int, (int From, int Offset)> _offsets;
+    private List<(int From, int Offset)> _offsets;
     private readonly int[] _path;
     private List<(int X, int Y, int OperationId)> _postponedOperations;
     private readonly TSource[] _sourceArray;
+    private List<int> _xProcessed, _yProcessed;
     #endregion
 
     #region Public Methods
@@ -83,15 +84,21 @@ public class DiffResult<TSource, TDestination>
 
         for (var i = 0; i < _offsets.Count; i++)
         {
-            var queryOffset = _offsets.Values[i];
+            var queryOffset = _offsets[i];
 
             // The provided offset should be applied to offsets that are positioned after the provided 'from' position.
             if (queryOffset.From > from)
-                _offsets[_offsets.Keys[i]] = (queryOffset.From + offset, queryOffset.Offset);
+                _offsets[i] = (queryOffset.From + offset, queryOffset.Offset);
         }
 
         // Finally, create the offset.
-        _offsets[operationId] = (from, offset);
+        // We use this technique so that the list remains sorted. This allows us to
+        // use a regular List instead of SortedList, which carries a performance hit.
+        if (operationId > _offsets.Count - 1)
+            _offsets.Add((from, offset));
+
+        else
+            _offsets.Insert(operationId, (from, offset));
     }
 
     private void DispatchUpdatesToCallback(ICollectionUpdateCallback updateCallback)
@@ -99,12 +106,27 @@ public class DiffResult<TSource, TDestination>
         if (updateCallback is not BatchingCollectionUpdateCallback batchingCallback)
             batchingCallback = new BatchingCollectionUpdateCallback(updateCallback);
 
-        // Provide capacity to avoid re-allocations. There will never be more offsets than items in the path.
-        _offsets = new SortedList<int, (int From, int Offset)>(_path.Length);
+        if (_offsets is null)
+        {
+            // Provide capacity to avoid re-allocations. There will never be more offsets than items in the path.
+            _offsets = new List<(int From, int Offset)>(_path.Length);
+        }
+        else
+            _offsets.Clear();
+
+        _xProcessed ??= new List<int>(_path.Length);
 
         // Postponed operations only required if there are moves in the path.
         if (_moveCount > 0)
-            _postponedOperations = new List<(int, int, int)>(_moveCount);
+        {
+            if (_postponedOperations is null)
+                _postponedOperations = new List<(int, int, int)>(_moveCount);
+
+            else
+                _postponedOperations.Clear();
+
+            _yProcessed ??= new List<int>(_moveCount);
+        }
 
         var currentX = -1;
         var currentY = -1;
@@ -209,9 +231,6 @@ public class DiffResult<TSource, TDestination>
         }
 
         batchingCallback.DispatchLastEvent();
-
-        _offsets.Clear();
-        _postponedOperations?.Clear();
     }
 
     private bool IsEmpty()
@@ -230,23 +249,29 @@ public class DiffResult<TSource, TDestination>
         if (_offsets.Count == 0)
             return x;
 
-        var offsets = _offsets.Values;
+        _xProcessed.Clear();
 
-        var processed = new List<int>(offsets.Count);
-
-        for (var i = 0; i < offsets.Count; i++)
+        for (var i = 0; i < _offsets.Count; i++)
         {
-            if (processed.Contains(i))
+            if (i < _xProcessed.Count && _xProcessed[i] == i)
                 continue;
 
-            var offset = offsets[i];
+            var offset = _offsets[i];
 
             if (x < offset.From)
                 continue;
 
             x += offset.Offset;
 
-            processed.Add(i);
+            // By adding and inserting like this, we can keep the list sorted, meaning
+            // that querying it at the start of the loop can be faster. Rather than
+            // using List.Contains(), which is an O(n) operation, we can retrieve the
+            // item directly via its index, which is an O(1) operation.
+            if (i > _xProcessed.Count - 1)
+                _xProcessed.Add(i);
+
+            else
+                _xProcessed.Insert(i, i);
 
             // The loop will increment 'i' before the next loop runs, so we need to set it to -1 in order to start again from 0.
             i = -1;
@@ -262,14 +287,14 @@ public class DiffResult<TSource, TDestination>
         if (_postponedOperations is not { Count: > 0 })
             return y;
 
-        var processed = new List<int>(_postponedOperations.Count);
+        _yProcessed.Clear();
 
         // The Y offset needs to be kept separate as we need the unmodified Y coordinate for the query.
         var yOffset = 0;
 
         for (var i = 0; i < _postponedOperations.Count; i++)
         {
-            if (processed.Contains(i))
+            if (i < _yProcessed.Count && _yProcessed[i] == i)
                 continue;
 
             var postponedOperation = _postponedOperations[i];
@@ -290,7 +315,15 @@ public class DiffResult<TSource, TDestination>
             else
                 continue;
 
-            processed.Add(i);
+            // By adding and inserting like this, we can keep the list sorted, meaning
+            // that querying it at the start of the loop can be faster. Rather than
+            // using List.Contains(), which is an O(n) operation, we can retrieve the
+            // item directly via its index, which is an O(1) operation.
+            if (i > _yProcessed.Count - 1)
+                _yProcessed.Add(i);
+
+            else
+                _yProcessed.Insert(i, i);
 
             // The loop will increment 'i' before the next loop runs, so we need to set it to -1 in order to start again from 0.
             i = -1;
