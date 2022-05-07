@@ -209,42 +209,47 @@ public static class DiffUtil
         // insert/remove operation, followed by the inverse later on in the path instructions. We have to
         // find these pairs and update their flags so that they're treated properly when applying the changes.
 
-        var pathStartIndex = 0;
+        var currentOperationIndex = 0;
 
         for (var diagonalIndex = 0; diagonalIndex < diagonals.Count; diagonalIndex++)
         {
+            // X/Y operation indexes can never be retrieved if the current operation
+            // index matches the path length, as the while loop will not run.
+            if (currentOperationIndex == path.Length)
+                break;
+
             var diagonal = diagonals[diagonalIndex];
 
             int xOperationIndex = -1, yOperationIndex = -1;
 
-            for (var operationIndex = pathStartIndex; operationIndex < path.Length; operationIndex++)
+            while (currentOperationIndex < path.Length)
             {
-                var operation = path[operationIndex];
+                var operation = path[currentOperationIndex];
 
                 // Skip this item if the payload already has the move flag.
                 // If an item has already been processed, what was previously an encoded X coordinate will now be an encoded Y
                 // coordinate and vice versa. If these new values match a non-processed value, this may select the wrong indexes.
-                if (operation == 0 || (operation & DiffOperation.Move) != 0)
-                    continue;
-
-                // Nested loop search not required since we're querying both X and Y. With this approach, no matter
-                // which coordinate we find first, it is guaranteed that the next one will be after it in the path.
-
-                if (xOperationIndex == -1 && (operation & DiffOperation.Remove) != 0
-                    && operation >> DiffOperation.Offset == diagonal.GlobalIndex / destinationArray.Length)
+                if (operation != 0 && (operation & DiffOperation.Move) == 0)
                 {
-                    xOperationIndex = operationIndex;
-                }
-                else if (yOperationIndex == -1 && (operation & DiffOperation.Insert) != 0
-                         && operation >> DiffOperation.Offset == diagonal.GlobalIndex % destinationArray.Length)
-                {
-                    yOperationIndex = operationIndex;
+                    // Nested loop search not required since we're querying both X and Y. With this approach, no matter
+                    // which coordinate we find first, it is guaranteed that the next one will be after it in the path.
+
+                    if (xOperationIndex == -1 && (operation & DiffOperation.Remove) != 0
+                        && operation >> DiffOperation.Offset == diagonal.GlobalIndex / destinationArray.Length)
+                    {
+                        xOperationIndex = currentOperationIndex;
+                    }
+                    else if (yOperationIndex == -1 && (operation & DiffOperation.Insert) != 0
+                             && operation >> DiffOperation.Offset == diagonal.GlobalIndex % destinationArray.Length)
+                    {
+                        yOperationIndex = currentOperationIndex;
+                    }
                 }
 
                 if (xOperationIndex != -1 && yOperationIndex != -1)
                     break;
 
-                pathStartIndex = operationIndex;
+                currentOperationIndex++;
             }
 
             // Both values are required to process a move operation.

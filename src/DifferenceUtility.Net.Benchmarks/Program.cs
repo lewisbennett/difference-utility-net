@@ -32,8 +32,8 @@ public static class Program
         BenchmarkRunner.Run<CalculateDiffBenchmarks>(new DebugInProcessConfig());
         BenchmarkRunner.Run<DifferenceUtilityBenchmarks>(new DebugInProcessConfig());
 #else
-        // BenchmarkRunner.Run<CalculateDiffBenchmarks>();
-        BenchmarkRunner.Run<DifferenceUtilityBenchmarks>();
+        BenchmarkRunner.Run<CalculateDiffBenchmarks>();
+        // BenchmarkRunner.Run<DifferenceUtilityBenchmarks>();
 #endif
     }
     #endregion
