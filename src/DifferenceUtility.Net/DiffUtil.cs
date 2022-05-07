@@ -19,7 +19,7 @@ namespace DifferenceUtility.Net;
 ///     </para>
 ///     <para>
 ///         DiffUtil uses  Eugene W. Myers' difference algorithm to calculate the minimal number of updates to convert one
-///         collection to into another. Myers' algorithm does not handle items that are moved so DiffUtil runs a second
+///         collection to another. Myers' algorithm does not handle items that are moved so DiffUtil runs a second
 ///         pass on the result to detect them.
 ///     </para>
 ///     <para>
@@ -30,7 +30,7 @@ namespace DifferenceUtility.Net;
 ///         reload all data to use DiffUtil.
 ///     </para>
 ///     <para>
-///         If the collections are large, this operations may take significant time, so you are advised to run this on a
+///         If the collections are large, this operation may take significant time, so you are advised to run this on a
 ///         background thread, get the <see cref="DiffResult{TOld,TNew}" />, then apply it on the main thread.
 ///     </para>
 /// </summary>
