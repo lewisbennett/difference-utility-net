@@ -12,7 +12,7 @@ Starting at `X0`/`Y0`, we'll work from left to right and top to bottom, querying
 
 ### 1) The Coordinate isn't at the Bottom of a Diagonal
 
-Here, we're querying `X0`/`Y0`. This coordinate **isn't** located at the bottom/end of a diagonal, therefore its score is the maximum value between the coordinate to the left and the coordinate above (in this case, `X-1`/`Y-1`). Since both of these coordinates' scores are `0`, the current coordinate receives a score of `0`, too.
+Here, we're querying `X0`/`Y0`. This coordinate **isn't** located at the bottom/end of a diagonal, therefore its score is the maximum value between the coordinate to the left and the coordinate above (in this case, `X-1`/`Y0` and `X0`/`Y-1`). Since both of these coordinates' scores are `0`, the current coordinate receives a score of `0`, too.
 
 <img src="images/badfhlocz-grid-lcs-partial-2.jpg" width="50%" height="50%">
 
